@@ -25,5 +25,5 @@ if machine.is_colab:
     BATCH_SIZE = 10
 else:
     NUM_EPOCHS = 2
-    BATCH_SIZE = 6
+    BATCH_SIZE = 5
 
