@@ -77,3 +77,6 @@ fabric.properties
 
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
+/chroma_instance/dataset/raw/
+/chroma_instance/logs/
+/chroma_instance/result/
