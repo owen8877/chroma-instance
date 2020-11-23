@@ -8,17 +8,17 @@ if [ ! -f ../weights/chroma_gan/imagenet.h5 ]; then
 fi
 
 # Instcolorization
-if [ ! -f ../weights/instcolorization/checkpoints.zip ]; then
-  echo "Downloading..."
-  pushd instcolorization
-  python download.py
-  popd
-  echo "Finish download."
-  [ -d ../weights/instcolorization/ ] || mkdir -p ../weights/instcolorization/
-  pushd ../weights/instcolorization/
-  unzip checkpoints.zip
-  popd
-fi
+#if [ ! -f ../weights/instcolorization/checkpoints.zip ]; then
+#  echo "Downloading..."
+#  pushd instcolorization
+#  python download.py
+#  popd
+#  echo "Finish download."
+#  [ -d ../weights/instcolorization/ ] || mkdir -p ../weights/instcolorization/
+#  pushd ../weights/instcolorization/
+#  unzip checkpoints.zip
+#  popd
+#fi
 
 # Mask RCNN
 if [ ! -f ../weights/mask_rcnn/coco.h5 ]; then

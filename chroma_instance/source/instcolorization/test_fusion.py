@@ -1,18 +1,16 @@
-# import os
-from os.path import join
+import sys
 # import time
-import machine
-from instcolorization.options.train_options import TrainOptions, TestOptions
-from instcolorization.models import create_model
-# from .util.visualizer import Visualizer
-
-from os.path import join, isfile, isdir
 from os import listdir
-# import os
-from argparse import ArgumentParser
+from os.path import join, isfile
 
-import detectron2
 from detectron2.utils.logger import setup_logger
+
+import machine
+from instcolorization.models import create_model
+from instcolorization.options.train_options import TestOptions
+
+# from .util.visualizer import Visualizer
+# import os
 setup_logger()
 
 import numpy as np
@@ -24,11 +22,9 @@ from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 
 import torch
-
-import torch
 # import torchvision
 # import torchvision.transforms as transforms
-from tqdm import trange, tqdm
+from tqdm import tqdm
 
 from instcolorization.fusion_dataset import Fusion_Testing_Dataset
 from instcolorization.util import util
@@ -40,6 +36,7 @@ import multiprocessing
 multiprocessing.set_start_method('spawn', True)
 
 torch.backends.cudnn.benchmark = True
+sys.argv = [sys.argv[0]]
 
 if __name__ == '__main__':
     # Bbox
