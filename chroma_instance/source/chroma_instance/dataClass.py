@@ -1,16 +1,18 @@
 import numpy as np
 import cv2
 import os
-from chroma_gan import config as config
+from chroma_instance import config as config
 
 
-class DATA():
-
-    def __init__(self, dirname):
+class Data:
+    def __init__(self, dirname, batch_size=config.BATCH_SIZE, limit=None):
         self.dir_path = os.path.join(config.DATA_DIR, dirname)
         self.filelist = list(filter(lambda f: '.jpg' in f, os.listdir(self.dir_path)))
-        self.batch_size = config.BATCH_SIZE
+        if limit:
+            self.filelist = self.filelist[:limit]
+        self.batch_size = batch_size
         self.size = len(self.filelist)
+        assert self.batch_size <= self.size, "The batch size should be smaller or equal to the number of training/test images --> modify it in config.py"
         self.data_index = 0
 
     def read_img(self, filename):

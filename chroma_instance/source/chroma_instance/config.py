@@ -20,11 +20,11 @@ TEST_DIR = "test"
 IMAGE_SIZE = 224
 
 # TRAINING INFORMATION
-PRETRAINED = "imagenet.h5"
+PRETRAINED = "my_model_colorizationEpoch4.h5"
 if machine.is_colab:
     NUM_EPOCHS = 5
     BATCH_SIZE = 10
 else:
     NUM_EPOCHS = 2
-    BATCH_SIZE = 5
+    BATCH_SIZE = 6
 

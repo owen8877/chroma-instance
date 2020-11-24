@@ -160,7 +160,8 @@ def colorization_model(shape):
 
 class RandomWeightedAverage(_Merge):
     def _merge_function(self, inputs):
-        weights = K.random_uniform((config.BATCH_SIZE, 1, 1, 1))
+        # weights = K.random_uniform((config.BATCH_SIZE, 1, 1, 1))
+        weights = K.random_uniform((tf.shape(inputs[0])[0], 1, 1, 1))
         return (weights * inputs[0]) + ((1 - weights) * inputs[1])
 
 
@@ -233,12 +234,13 @@ class ChromaModel():
         VGG_modelF = applications.vgg16.VGG16(weights='imagenet', include_top=True)
 
         # Real, Fake and Dummy for Discriminator
-        positive_y = np.ones((config.BATCH_SIZE, 1), dtype=np.float32)
+        positive_y = np.ones((data.batch_size, 1), dtype=np.float32)
         negative_y = -positive_y
-        dummy_y = np.zeros((config.BATCH_SIZE, 1), dtype=np.float32)
+        dummy_y = np.zeros((data.batch_size, 1), dtype=np.float32)
 
         # total number of batches in one epoch
-        total_batch = int(data.size / config.BATCH_SIZE)
+        total_batch = int(data.size / data.batch_size)
+        print(f'batch_size={data.batch_size} * total_batch={total_batch}')
 
         for epoch in range(config.NUM_EPOCHS):
             for batch in range(total_batch):
@@ -250,17 +252,15 @@ class ChromaModel():
                 predictVGG = VGG_modelF.predict(l_3)
 
                 # train generator
-                g_loss = self.combined.train_on_batch([l_3, trainL],
-                                                      [trainAB, predictVGG, positive_y])
+                g_loss = self.combined.train_on_batch([l_3, trainL], [trainAB, predictVGG, positive_y])
                 # train discriminator
-                d_loss = self.discriminator_model.train_on_batch([trainL, trainAB, l_3],
-                                                                 [positive_y, negative_y, dummy_y])
+                d_loss = self.discriminator_model.train_on_batch([trainL, trainAB, l_3], [positive_y, negative_y, dummy_y])
 
                 # update log files
                 write_log(self.callback, self.train_names, g_loss, (epoch * total_batch + batch + 1))
                 write_log(self.callback, self.disc_names, d_loss, (epoch * total_batch + batch + 1))
 
-                if (batch) % 1000 == 0:
+                if batch % 10 == 0:
                     print("[Epoch %d] [Batch %d/%d] [generator loss: %08f] [discriminator loss: %08f]" % (
                         epoch, batch, total_batch, g_loss[0], d_loss[0]))
             # save models after each epoch
@@ -275,7 +275,7 @@ class ChromaModel():
             self.sample_images(test_data, epoch)
 
     def sample_images(self, test_data, epoch):
-        total_batch = int(test_data.size / config.BATCH_SIZE)
+        total_batch = int(test_data.size / test_data.batch_size)
         for _ in range(total_batch):
             # load test data
             testL, _, filelist, original, labimg_oritList = test_data.generate_batch()
@@ -284,30 +284,23 @@ class ChromaModel():
             predAB, _ = self.colorization_model.predict(np.tile(testL, [1, 1, 1, 3]))
 
             # print results
-            for i in range(config.BATCH_SIZE):
+            for i in range(test_data.batch_size):
                 originalResult = original[i]
                 height, width, channels = originalResult.shape
                 predictedAB = cv2.resize(deprocess(predAB[i]), (width, height))
                 labimg_ori = np.expand_dims(labimg_oritList[i], axis=2)
-                predResult = reconstruct(deprocess(labimg_ori), predictedAB,
-                                         "epoch" + str(epoch) + "_" + filelist[i][:-5])
+                reconstruct(deprocess(labimg_ori), predictedAB, f'epoch{epoch}_{filelist[i][:-5]}')
 
 
-def train():
+def train(train_data, test_data):
     # Create log folder if needed.
     log_path = os.path.join(config.LOG_DIR, config.TEST_NAME)
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
-    with open(os.path.join(log_path, str(datetime.datetime.now().strftime("%Y%m%d")) + "_" + str(
-            config.BATCH_SIZE) + "_" + str(config.NUM_EPOCHS) + ".txt"), "w") as log:
+    date_ymd = datetime.datetime.now().strftime("%Y%m%d")
+    with open(os.path.join(log_path, f'{date_ymd}_{train_data.batch_size}_{config.NUM_EPOCHS}.txt'), "w") as log:
         log.write(str(datetime.datetime.now()) + "\n")
-
-        print('load training data from ' + config.TRAIN_DIR)
-        train_data = data.DATA(config.TRAIN_DIR)
-        test_data = data.DATA(config.TEST_DIR)
-        assert config.BATCH_SIZE <= train_data.size, "The batch size should be smaller or equal to the number of training images --> modify it in config.py"
-        print("Train data loaded")
 
         print("Initializing Model...")
         colorizationModel = ChromaModel()
@@ -318,4 +311,9 @@ def train():
 
 
 if __name__ == '__main__':
-    train()
+    print('load training data from ' + config.TRAIN_DIR)
+    train_data = data.Data(config.TRAIN_DIR, batch_size=1, limit=5)
+    test_data = data.Data(config.TEST_DIR, batch_size=4)
+    print("Train data loaded")
+
+    train(train_data, test_data)

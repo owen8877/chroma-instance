@@ -30,8 +30,11 @@
 #fi
 
 # COCO Training
-if [ ! -f ../dataset/train2017.zip ]; then
+if [ ! -d ../dataset/train ]; then
   pushd ../dataset
-  wget http://images.cocodataset.org/zips/train2017.zip
+  wget http://images.cocodataset.org/zips/val2014.zip
+  unzip val2014.zip
+  mv val2014/val2014 train
+  rm -r val2014
   popd
 fi
