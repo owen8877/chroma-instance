@@ -16,7 +16,7 @@ class InferenceConfig(coco.CocoConfig):
     IMAGES_PER_GPU = 1
 
 
-def extract_bbox(dir):
+def extract_bbox(config, dir):
     inference_config = InferenceConfig()
     model = model_lib.MaskRCNN(mode="inference", model_dir=config.MODEL_DIR, config=inference_config)
     model.load_weights(config.COCO_MODEL_PATH, by_name=True)
@@ -48,5 +48,5 @@ if __name__ == '__main__':
     config.COCO_MODEL_PATH = os.path.join(config.ROOT_DIR, "weights/mask_rcnn/coco.h5")
     if not os.path.exists(config.COCO_MODEL_PATH):
         utils.download_trained_weights(config.COCO_MODEL_PATH)
-    extract_bbox(config.TRAIN_DIR)
-    extract_bbox(config.TEST_DIR)
+    extract_bbox(config, config.TRAIN_DIR)
+    extract_bbox(config, config.TEST_DIR)
