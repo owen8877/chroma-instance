@@ -7,6 +7,7 @@ from tqdm import tqdm
 import mrcnn.model as model_lib
 from chroma_instance import configs
 from mrcnn import utils, coco
+import tensorflow as tf
 
 
 class InferenceConfig(coco.CocoConfig):
@@ -16,9 +17,10 @@ class InferenceConfig(coco.CocoConfig):
     IMAGES_PER_GPU = 1
 
 
-def extract_bbox(config, dir):
+def extract_bbox(config, dir, strategy):
     inference_config = InferenceConfig()
-    model = model_lib.MaskRCNN(mode="inference", model_dir=config.MODEL_DIR, config=inference_config)
+    with strategy.scope():
+        model = model_lib.MaskRCNN(mode="inference", model_dir=config.MODEL_DIR, config=inference_config)
     model.load_weights(config.COCO_MODEL_PATH, by_name=True)
 
     os.makedirs(f'{config.DATA_DIR}/{dir}_bbox', exist_ok=True)
@@ -48,5 +50,7 @@ if __name__ == '__main__':
     config.COCO_MODEL_PATH = os.path.join(config.ROOT_DIR, "weights/mask_rcnn/coco.h5")
     if not os.path.exists(config.COCO_MODEL_PATH):
         utils.download_trained_weights(config.COCO_MODEL_PATH)
-    extract_bbox(config, config.TRAIN_DIR)
-    extract_bbox(config, config.TEST_DIR)
+    strategy = tf.distribute.get_strategy()
+
+    # extract_bbox(config, config.TRAIN_DIR, strategy)
+    extract_bbox(config, config.TEST_DIR, strategy)
