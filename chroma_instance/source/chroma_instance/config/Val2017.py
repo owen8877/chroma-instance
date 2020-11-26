@@ -23,7 +23,7 @@ class Val2017Config:
 
         # DATA INFORMATION
         self.IMAGE_SIZE = 224
-        self.INSTANCE_SIZE = 64
+        self.INSTANCE_SIZE = 224
 
         # TRAINING INFORMATION
         self.PRETRAINED = "my_model_colorizationEpoch4.h5"

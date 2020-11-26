@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skimage.transform
 
-from chroma_instance.config import Val2017
+from chroma_instance.config import Val2017, MAX_INSTANCES
 from chroma_instance.data.batch import Batch
 
 
@@ -46,19 +46,19 @@ class Data:
             skimage.transform.resize((result['mask'] == i + 1).astype(float), self.instance_shape).astype(np.float16)
             for i in range(object_n)]
 
-        return np.concatenate([y_box_ratio, x_box_ratio], axis=1).T, masks
+        return np.concatenate([y_box_ratio, x_box_ratio], axis=1).T, np.stack(masks, axis=-1), object_n
 
     def segment(self, img, bbox):
-        l = []
-        ab = []
+        l = np.zeros((*self.instance_shape, 1, MAX_INSTANCES), dtype=np.uint8)
+        ab = np.zeros((*self.instance_shape, 2, MAX_INSTANCES), dtype=np.uint8)
         for i in range(bbox.shape[1]):
             y_box = np.floor(bbox[:2, i] * self.image_shape[0]).astype(int)
             x_box = np.floor(bbox[2:, i] * self.image_shape[1]).astype(int)
 
             instance = cv2.cvtColor(cv2.resize(img[y_box[0]:y_box[1], x_box[0]:x_box[1], :], self.instance_shape),
                                     cv2.COLOR_BGR2Lab)
-            l.append(instance[:, :, :1])
-            ab.append(instance[:, :, 1:])
+            l[:, :, :, i] = instance[:, :, :1]
+            ab[:, :, :, i] = instance[:, :, 1:]
 
         return l, ab
 
@@ -75,9 +75,10 @@ class Data:
             batch.images.l.append(img_l)
 
             bbox_filepath = f'{self.dir_path}_bbox/{self.file_list[self.data_index]}.npz'
-            bbox, mask = self.read_bbox(bbox_filepath, img_full.shape)
+            bbox, mask, object_n = self.read_bbox(bbox_filepath, img_full.shape)
             batch.instances.bbox.append(bbox)
             batch.instances.mask.append(mask)
+            batch.object_n.append(object_n)
 
             instance_l, instance_ab = self.segment(img_resized, bbox)
             batch.instances.l.append(instance_l)
@@ -105,16 +106,16 @@ if __name__ == '__main__':
     plt.figure(2)
     for i in range(config.BATCH_SIZE):
         plt.subplot(2, 3, i + 1)
-        if j < len(batch.instances.mask[i]):
-            plt.imshow(batch.instances.mask[i][j].astype(np.float32))
+        if j < len(batch.object_n):
+            plt.imshow(batch.instances.mask[i][:, :, j].astype(np.float32))
     plt.title('Masks')
     plt.show()
 
     plt.figure(3)
     for i in range(config.BATCH_SIZE):
         plt.subplot(2, 3, i + 1)
-        if j < len(batch.instances.mask[i]):
-            img = np.concatenate([batch.instances.l[i][j], batch.instances.ab[i][j]], axis=2)
+        if j < len(batch.object_n):
+            img = np.concatenate([batch.instances.l[i][:, :, :, j], batch.instances.ab[i][:, :, :, j]], axis=2)
             plt.imshow(cv2.cvtColor(img, cv2.COLOR_Lab2RGB))
     plt.title(f'Instance L (#{j})')
     plt.show()

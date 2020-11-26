@@ -29,6 +29,7 @@ class Batch:
         self.images = Images()
         self.instances = Instances()
         self.file_names: List[str] = []
+        self.object_n: List[int] = []
 
     def normalize(self):
         self.resized_images.l = np.asarray(self.resized_images.l) / 255  # values between 0 and 1
