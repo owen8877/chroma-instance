@@ -5,7 +5,7 @@ import skimage.io
 from tqdm import tqdm
 
 import mrcnn.model as model_lib
-from chroma_instance import configs
+from chroma_instance.config import FirstTest
 from mrcnn import utils, coco
 import tensorflow as tf
 
@@ -13,8 +13,8 @@ import tensorflow as tf
 class InferenceConfig(coco.CocoConfig):
     # Set batch size to 1 since we'll be running inference on
     # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-    GPU_COUNT = 8
-    IMAGES_PER_GPU = 2
+    GPU_COUNT = 1
+    IMAGES_PER_GPU = 1
     DETECTION_MAX_INSTANCES = 8
 
 
@@ -52,7 +52,7 @@ def extract_bbox(config, dir, strategy):
 
 
 if __name__ == '__main__':
-    config = configs.FirstTestConfig(ROOT_DIR='../../../')
+    config = FirstTest.FirstTestConfig(ROOT_DIR='../../../')
     config.COCO_MODEL_PATH = os.path.join(config.ROOT_DIR, "weights/mask_rcnn/coco.h5")
     if not os.path.exists(config.COCO_MODEL_PATH):
         utils.download_trained_weights(config.COCO_MODEL_PATH)

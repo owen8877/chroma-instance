@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skimage.transform
 
-from chroma_instance import configs
+from chroma_instance.config import Val2017
 from chroma_instance.data.batch import Batch
 
 
@@ -42,7 +42,9 @@ class Data:
         x_box_ratio = x_box / shape[1]
 
         object_n = result['object_n']
-        masks = [skimage.transform.resize((result['mask'] == i + 1).astype(float), self.instance_shape).astype(np.float16) for i in range(object_n)]
+        masks = [
+            skimage.transform.resize((result['mask'] == i + 1).astype(float), self.instance_shape).astype(np.float16)
+            for i in range(object_n)]
 
         return np.concatenate([y_box_ratio, x_box_ratio], axis=1).T, masks
 
@@ -53,7 +55,8 @@ class Data:
             y_box = np.floor(bbox[:2, i] * self.image_shape[0]).astype(int)
             x_box = np.floor(bbox[2:, i] * self.image_shape[1]).astype(int)
 
-            instance = cv2.cvtColor(cv2.resize(img[y_box[0]:y_box[1], x_box[0]:x_box[1], :], self.instance_shape), cv2.COLOR_BGR2Lab)
+            instance = cv2.cvtColor(cv2.resize(img[y_box[0]:y_box[1], x_box[0]:x_box[1], :], self.instance_shape),
+                                    cv2.COLOR_BGR2Lab)
             l.append(instance[:, :, :1])
             ab.append(instance[:, :, 1:])
 
@@ -86,7 +89,7 @@ class Data:
 
 
 if __name__ == '__main__':
-    config = configs.FirstTestConfig(ROOT_DIR='../../../')
+    config = Val2017.Val2017Config(ROOT_DIR='../../../')
     data = Data(config.TRAIN_DIR, config)
 
     batch = data.generate_batch()
