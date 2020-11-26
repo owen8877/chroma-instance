@@ -2392,6 +2392,7 @@ class MaskRCNN():
         windows = []
         for image in images:
             # Resize image
+            image = np.atleast_3d(image)
             # TODO: move resizing to mold_image()
             molded_image, window, scale, padding, crop = utils.resize_image(
                 image,
