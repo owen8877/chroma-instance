@@ -30,7 +30,7 @@
 #fi
 
 # COCO Training
-if [ ! -d ../dataset/train ]; then
+if [ ! -d /content/chroma-instance/chroma_instance/dataset/train ]; then
   pushd /content/chroma-instance/chroma_instance/dataset/
   wget http://images.cocodataset.org/zips/val2014.zip
   unzip val2014.zip
