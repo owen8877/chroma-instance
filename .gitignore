@@ -81,3 +81,6 @@ fabric.properties
 /chroma_instance/logs/
 /chroma_instance/result/
 /chroma_instance/weights/chroma_instance/
+/chroma_instance/dataset/train*/
+*.npy
+*.npz
