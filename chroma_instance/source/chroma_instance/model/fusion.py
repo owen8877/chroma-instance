@@ -5,48 +5,33 @@ import cv2
 import numpy as np
 import tensorflow as tf
 from keras import Model, applications, Sequential
-from keras import backend as K
 from keras.callbacks import TensorBoard
-from keras.layers import Conv2D
-from keras.layers import Input, Layer
+from keras.layers import Input, BatchNormalization, Dense, Flatten, RepeatVector, Reshape, UpSampling2D
+from keras.layers import Layer
+from keras.layers import concatenate, Conv2D
 from keras.layers.advanced_activations import Softmax
+from keras.layers.merge import Concatenate
 from keras.optimizers import Adam
 
-from chroma_instance.data.generator import Data
-from chroma_instance.model.basic import discriminator_network, RandomWeightedAverage, \
-    fusion_network, instance_colorization_network
+from chroma_instance.model.basic import discriminator_network, RandomWeightedAverage, wasserstein_loss_dummy
 from chroma_instance.util import write_log, deprocess, reconstruct
 
 GRADIENT_PENALTY_WEIGHT = 10
 
 
-def gradient_penalty_loss(y_true, y_pred, averaged_samples, gradient_penalty_weight):
-    gradients = K.gradients(y_pred, averaged_samples)[0]
-    gradients_sqr = K.square(gradients)
-    gradients_sqr_sum = K.sum(gradients_sqr, axis=np.arange(1, len(gradients_sqr.shape)))
-    gradient_l2_norm = K.sqrt(gradients_sqr_sum)
-    gradient_penalty = gradient_penalty_weight * K.square(1 - gradient_l2_norm)
-    return K.mean(gradient_penalty)
-
-
-def wasserstein_loss_dummy(y_true, y_pred):
-    return tf.reduce_mean(y_pred)
-
-
 class WeightGenerator(Layer):
-    def __init__(self, units, box_info):
+    def __init__(self, units):
         super(WeightGenerator, self).__init__()
-        self.box_info = box_info
 
         instance_conv = Sequential()
         instance_conv.add(Conv2D(units, 3, padding='same', strides=1, activation='relu'))
-        instance_conv.add(Conv2D(units, 3, padding='same', strides=1, activation='relu'))
+        # instance_conv.add(Conv2D(units, 3, padding='same', strides=1, activation='relu'))
         instance_conv.add(Conv2D(1, 3, padding='same', strides=1, activation='relu'))
         self.instance_conv = instance_conv
 
         simple_bg_conv = Sequential()
         simple_bg_conv.add(Conv2D(units, 3, padding='same', strides=1, activation='relu'))
-        simple_bg_conv.add(Conv2D(units, 3, padding='same', strides=1, activation='relu'))
+        # simple_bg_conv.add(Conv2D(units, 3, padding='same', strides=1, activation='relu'))
         simple_bg_conv.add(Conv2D(1, 3, padding='same', strides=1, activation='relu'))
         self.simple_bg_conv = simple_bg_conv
 
@@ -62,13 +47,14 @@ class WeightGenerator(Layer):
         return feauture_maps
 
     def call(self, inputs, **kwargs):
-        instance_feature, bg_feature = inputs
+        # TODO: How to use mrcnn_mask?
+        instance_feature, bg_feature, bbox, mrcnn_mask = inputs
 
         mask_list = []
         feature_map_list = []
         mask_sum_for_pred = tf.zeros_like(bg_feature)[:1, :1]  # torch.zeros_like(bg_feature)[:1, :1]
         for i in range(instance_feature.shape[0]):
-            box_info = self.box_info[i]
+            box_info = bbox[:, i]
             tmp_crop = tf.expand_dims(instance_feature[i], axis=0)  # torch.unsqueeze(instance_feature[i], 0)
             conv_tmp_crop = self.instance_conv(tmp_crop)
             pred_mask = self.resize_and_pad(conv_tmp_crop, box_info)
@@ -114,6 +100,140 @@ class WeightGenerator(Layer):
         return out  # , instance_mask, torch.clamp(mask_list, 0.0, 1.0)
 
 
+def chroma_color_with_label(shape):
+    input_img = Input(shape=shape)
+    input_img_1 = Reshape((*shape, 1))(input_img)
+    input_img_3 = Concatenate(axis=3)([input_img_1, input_img_1, input_img_1])
+
+    # VGG16 without top layers
+    VGG_model = applications.vgg16.VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+    vgg_model_3 = Model(VGG_model.input, VGG_model.layers[-6].output, name='model_3')(input_img_3)
+
+    # Global features
+    conv2d_6 = Conv2D(512, (3, 3), padding='same', strides=(2, 2), activation='relu', name='conv2d_6')(vgg_model_3)
+    batch_normalization_1 = BatchNormalization(name='batch_normalization_1')(conv2d_6)
+    conv2d_7 = Conv2D(512, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_7')(
+        batch_normalization_1)
+    batch_normalization_2 = BatchNormalization(name='batch_normalization_2')(conv2d_7)
+
+    conv2d_8 = Conv2D(512, (3, 3), padding='same', strides=(2, 2), activation='relu', name='conv2d_8')(
+        batch_normalization_2)
+    batch_normalization_3 = BatchNormalization(name='batch_normalization_3')(conv2d_8)
+    conv2d_9 = Conv2D(512, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_9')(
+        batch_normalization_3)
+    batch_normalization_4 = BatchNormalization(name='batch_normalization_4')(conv2d_9)
+
+    # Global feature pass back to colorization + classification
+    flatten_1 = Flatten(name='flatten_1')(batch_normalization_4)
+    dense_1 = Dense(1024, activation='relu', name='dense_1')(flatten_1)
+    dense_2 = Dense(512, activation='relu', name='dense_2')(dense_1)
+    dense_3 = Dense(256, activation='relu', name='dense_3')(dense_2)
+    repeat_vector_1 = RepeatVector(28 * 28, name='repeat_vector_1')(dense_3)
+    reshape_1 = Reshape((28, 28, 256), name='reshape_1')(repeat_vector_1)
+
+    # Mid-level features
+    conv2d_10 = Conv2D(512, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_10')(vgg_model_3)
+    batch_normalization_5 = BatchNormalization(name='batch_normalization_5')(conv2d_10)
+    conv2d_11 = Conv2D(256, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_11')(
+        batch_normalization_5)
+    batch_normalization_6 = BatchNormalization(name='batch_normalization_6')(conv2d_11)
+
+    # Fusion of (VGG16 -> Mid-level) + (VGG16 -> Global) + Colorization
+    concatenate_2 = concatenate([batch_normalization_6, reshape_1], name='concatenate_2')
+
+    conv2d_12 = Conv2D(256, (1, 1), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(concatenate_2)
+    conv2d_13 = Conv2D(128, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_13')(conv2d_12)
+    up_sampling2d_1 = UpSampling2D(size=(2, 2), name='up_sampling2d_1')(conv2d_13)
+
+    conv2d_14 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(up_sampling2d_1)
+    conv2d_15 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_13')(conv2d_14)
+    up_sampling2d_2 = UpSampling2D(size=(2, 2), name='up_sampling2d_2')(conv2d_15)
+
+    conv2d_16 = Conv2D(32, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(up_sampling2d_2)
+    conv2d_17 = Conv2D(2, (3, 3), padding='same', strides=(1, 1), activation='sigmoid', name='conv2d_13')(conv2d_16)
+    up_sampling2d_3 = UpSampling2D(size=(2, 2), name='up_sampling2d_3')(conv2d_17)
+
+    generated = Model(input=input_img, outputs=[up_sampling2d_3, vgg_model_3, conv2d_11, conv2d_13, conv2d_15, conv2d_17])
+
+    return generated
+
+
+def fusion_network(shape):
+    input_img = Input(shape=shape)
+    input_img_1 = Reshape((*shape, 1))(input_img)
+    input_img_3 = Concatenate(axis=3)([input_img_1, input_img_1, input_img_1])
+
+    bbox = Input(shape=(4,))
+    mask = Input(shape=shape)
+
+    # VGG16 without top layers
+    VGG_model = applications.vgg16.VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+    vgg_model_3_pre = Model(VGG_model.input, VGG_model.layers[-6].output, name='model_3')(input_img_3)
+    fg_model_3 = Input(shape=vgg_model_3_pre.shape, name='fg_model_3')  # <-
+    vgg_model_3 = WeightGenerator(512)([fg_model_3, vgg_model_3_pre, bbox, mask])  # <-
+
+    # Global features
+    conv2d_6 = Conv2D(512, (3, 3), padding='same', strides=(2, 2), activation='relu', name='conv2d_6')(vgg_model_3)
+    batch_normalization_1 = BatchNormalization(name='batch_normalization_1')(conv2d_6)
+    conv2d_7 = Conv2D(512, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_7')(
+        batch_normalization_1)
+    batch_normalization_2 = BatchNormalization(name='batch_normalization_2')(conv2d_7)
+
+    conv2d_8 = Conv2D(512, (3, 3), padding='same', strides=(2, 2), activation='relu', name='conv2d_8')(
+        batch_normalization_2)
+    batch_normalization_3 = BatchNormalization(name='batch_normalization_3')(conv2d_8)
+    conv2d_9 = Conv2D(512, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_9')(
+        batch_normalization_3)
+    batch_normalization_4 = BatchNormalization(name='batch_normalization_4')(conv2d_9)
+
+    # Classification
+    flatten_2 = Flatten(name='flatten_2')(batch_normalization_4)
+    dense_4 = Dense(4096, activation='relu', name='dense_4')(flatten_2)
+    dense_5 = Dense(4096, activation='relu', name='dense_5')(dense_4)
+    dense_6 = Dense(1000, activation='softmax', name='dense_6')(dense_5)
+
+    # Global feature pass back to colorization + classification
+    flatten_1 = Flatten(name='flatten_1')(batch_normalization_4)
+    dense_1 = Dense(1024, activation='relu', name='dense_1')(flatten_1)
+    dense_2 = Dense(512, activation='relu', name='dense_2')(dense_1)
+    dense_3 = Dense(256, activation='relu', name='dense_3')(dense_2)
+    repeat_vector_1 = RepeatVector(28 * 28, name='repeat_vector_1')(dense_3)
+    reshape_1 = Reshape((28, 28, 256), name='reshape_1')(repeat_vector_1)
+
+    # Mid-level features
+    conv2d_10 = Conv2D(512, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_10')(vgg_model_3)
+    batch_normalization_5 = BatchNormalization(name='batch_normalization_5')(conv2d_10)
+    conv2d_11_pre = Conv2D(256, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_11')(batch_normalization_5)
+    fg_conv2d_11 = Input(shape=conv2d_11_pre.shape, name='fg_conv2d_11')  # <-
+    conv2d_11 = WeightGenerator(256)([fg_conv2d_11, conv2d_11_pre, bbox, mask])  # <-
+    batch_normalization_6 = BatchNormalization(name='batch_normalization_6')(conv2d_11)
+
+    # Fusion of (VGG16 -> Mid-level) + (VGG16 -> Global) + Colorization
+    concatenate_2 = concatenate([batch_normalization_6, reshape_1], name='concatenate_2')
+
+    conv2d_12 = Conv2D(256, (1, 1), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(concatenate_2)
+    conv2d_13_pre = Conv2D(128, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_13')(conv2d_12)
+    fg_conv2d_13 = Input(shape=conv2d_13_pre.shape, name='fg_conv2d_13')  # <-
+    conv2d_13 = WeightGenerator(128)([fg_conv2d_13, conv2d_13_pre, bbox, mask])  # <-
+    up_sampling2d_1 = UpSampling2D(size=(2, 2), name='up_sampling2d_1')(conv2d_13)
+
+    conv2d_14 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(up_sampling2d_1)
+    conv2d_15_pre = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_13')(conv2d_14)
+    fg_conv2d_15 = Input(shape=conv2d_13_pre.shape, name='fg_conv2d_15')  # <-
+    conv2d_15 = WeightGenerator(64)([fg_conv2d_15, conv2d_15_pre, bbox, mask])  # <-
+    up_sampling2d_2 = UpSampling2D(size=(2, 2), name='up_sampling2d_2')(conv2d_15)
+
+    conv2d_16 = Conv2D(32, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(up_sampling2d_2)
+    conv2d_17_pre = Conv2D(2, (3, 3), padding='same', strides=(1, 1), activation='sigmoid', name='conv2d_13')(conv2d_16)
+    fg_conv2d_17 = Input(shape=conv2d_17_pre.shape, name='fg_conv2d_17')  # <-
+    conv2d_17 = WeightGenerator(2)([fg_conv2d_17, conv2d_17_pre, bbox, mask])  # <-
+    up_sampling2d_3 = UpSampling2D(size=(2, 2), name='up_sampling2d_3')(conv2d_17)
+
+    generated = Model(input=input_img, outputs=[up_sampling2d_3, dense_6])
+
+    return generated
+
+
 class FusionModel:
     def __init__(self, config):
         img_shape = (config.IMAGE_SIZE, config.IMAGE_SIZE)
@@ -121,8 +241,8 @@ class FusionModel:
         # Creating generator and discriminator
         optimizer = Adam(0.00002, 0.5)
 
-        self.foreground_generator = instance_colorization_network(img_shape)
-        self.foreground_generator.compile(loss=['mse', 'kld'], optimizer=optimizer)
+        self.foreground_generator = chroma_color_with_label(img_shape)
+        self.foreground_generator.compile(loss=['mse'], optimizer=optimizer)
 
         self.fusion_discriminator = discriminator_network(img_shape)
         self.fusion_discriminator.compile(loss=wasserstein_loss_dummy, optimizer=optimizer)
@@ -133,7 +253,7 @@ class FusionModel:
         fg_img_l = Input(shape=(*img_shape, 1, None))
 
         self.foreground_generator.trainable = False
-        fg_img_pred_ab, fg_class_vec, fg_feature = self.foreground_generator(fg_img_l)
+        fg_img_pred_ab, fg_vgg_model_3, fg_conv2d_11, fg_conv2d_13, fg_conv2d_15, fg_conv2d_17 = self.foreground_generator(fg_img_l)
 
         # Fusion prediction
         fusion_img_l = Input(shape=(*img_shape, 1))

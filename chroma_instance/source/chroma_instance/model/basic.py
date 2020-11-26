@@ -276,9 +276,6 @@ def discriminator_network(shape):
     return Model([input_ab, input_l], net)
 
 
-def fusion_network(shape):
-    raise NotImplemented()
-
 
 def gradient_penalty_loss(y_true, y_pred, averaged_samples, gradient_penalty_weight):
     gradients = K.gradients(y_pred, averaged_samples)[0]

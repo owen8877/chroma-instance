@@ -9,7 +9,7 @@ from keras.callbacks import TensorBoard
 from keras.layers import Input
 from keras.optimizers import Adam
 
-from chroma_instance.configs import FirstTestConfig
+from chroma_instance.config.FirstTest import FirstTestConfig
 from chroma_instance.data.generator import Data
 from chroma_instance.model.basic import discriminator_network, RandomWeightedAverage, \
     wasserstein_loss_dummy, gradient_penalty_loss, simple_instance_network

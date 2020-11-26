@@ -3,11 +3,11 @@ import os
 import skimage.io
 
 import mrcnn.model as model_lib
-from chroma_instance import configs
+from chroma_instance.config import FirstTest
 from mrcnn import utils, coco, visualize
 import numpy as np
 
-config = configs.FirstTestConfig(ROOT_DIR='../../../')
+config = FirstTest.FirstTestConfig(ROOT_DIR='../../../')
 config.COCO_MODEL_PATH = os.path.join(config.ROOT_DIR, "weights/mask_rcnn/coco.h5")
 if not os.path.exists(config.COCO_MODEL_PATH):
     utils.download_trained_weights(config.COCO_MODEL_PATH)

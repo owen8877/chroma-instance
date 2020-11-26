@@ -1,6 +1,6 @@
 import os
 import tensorflow as tf
-from chroma_instance import configs as config
+from chroma_instance.config import FirstTest as config
 from chroma_instance.data import generator as data
 import numpy as np
 import cv2
