@@ -10,7 +10,7 @@ from keras.optimizers import Adam
 
 from chroma_instance.model.basic import discriminator_network, bg_colorization_network, RandomWeightedAverage, \
     wasserstein_loss_dummy, gradient_penalty_loss
-from chroma_instance.util import write_log, deprocess, reconstruct
+from chroma_instance.util import write_log, deprocess_float2int, reconstruct_and_save
 
 GRADIENT_PENALTY_WEIGHT = 10
 
@@ -75,7 +75,7 @@ class BackgroundModel:
     def train(self, data, test_data, log, config, sample_interval=1):
 
         # Create folder to save models if needed.
-        save_models_path = os.path.join(config.MODEL_DIR, config.TEST_NAME)
+        save_models_path = config.MODEL_DIR
         if not os.path.exists(save_models_path):
             os.makedirs(save_models_path)
 
@@ -137,6 +137,6 @@ class BackgroundModel:
             for i in range(test_data.batch_size):
                 originalResult = original[i]
                 height, width, channels = originalResult.shape
-                predictedAB = cv2.resize(deprocess(predAB[i]), (width, height))
+                predictedAB = cv2.resize(deprocess_float2int(predAB[i]), (width, height))
                 labimg_ori = np.expand_dims(labimg_oritList[i], axis=2)
-                reconstruct(deprocess(labimg_ori), predictedAB, f'epoch{epoch}_{filelist[i][:-5]}', config)
+                reconstruct_and_save(deprocess_float2int(labimg_ori), predictedAB, f'epoch{epoch}_{filelist[i][:-5]}', config)

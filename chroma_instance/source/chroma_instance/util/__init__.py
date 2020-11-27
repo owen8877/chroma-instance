@@ -6,27 +6,31 @@ import numpy as np
 import tensorflow as tf
 
 
-def deprocess(imgs):
-    imgs = imgs * 255
-    imgs[imgs > 255] = 255
-    imgs[imgs < 0] = 0
-    return imgs.astype(np.uint8)
+def deprocess_float2int(imgs):
+    # imgs = imgs * 255
+    # imgs[imgs > 255] = 255
+    # imgs[imgs < 0] = 0
+    # return imgs.astype(np.uint8)
+    return np.clip(imgs*255, 0, 255).astype(np.uint8)
 
 
-def reconstruct(batchX, predictedY, filelist, config):
+def reconstruct_and_save(batchX, predictedY, filename, config):
+    result = reconstruct(batchX, predictedY)
+    save_reconstructed_img(config, filename, result)
+
+
+def reconstruct(batchX, predictedY):
     result = np.concatenate((batchX, predictedY), axis=2)
     result = cv2.cvtColor(result, cv2.COLOR_Lab2BGR)
-    save_results_path = os.path.join(config.OUT_DIR, config.TEST_NAME)
-    if not os.path.exists(save_results_path):
-        os.makedirs(save_results_path)
-    save_path = os.path.join(save_results_path, filelist + "_reconstructed.jpg")
-    cv2.imwrite(save_path, result)
     return result
 
 
-def reconstruct_no(batchX, predictedY):
-    result = np.concatenate((batchX, predictedY), axis=2)
-    result = cv2.cvtColor(result, cv2.COLOR_Lab2BGR)
+def save_reconstructed_img(config, filename, result):
+    save_results_path = os.path.join(config.OUT_DIR, config.TEST_NAME)
+    if not os.path.exists(save_results_path):
+        os.makedirs(save_results_path)
+    save_path = os.path.join(save_results_path, f"{filename}_reconstructed.jpg")
+    cv2.imwrite(save_path, result)
     return result
 
 

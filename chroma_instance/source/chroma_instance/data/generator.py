@@ -98,22 +98,23 @@ class Data:
 
 
 if __name__ == '__main__':
-    config = FirstTest.FirstTestConfig(ROOT_DIR='../../../')
-    data = Data(config.TRAIN_DIR, config)
+    config = FirstTest.FirstTestConfig('generator', ROOT_DIR='../../../')
+    config.BATCH_SIZE = 10
+    data = Data(config.TEST_DIR, config)
 
     batch = data.generate_batch()
 
     plt.figure(1)
     for i in range(config.BATCH_SIZE):
-        plt.subplot(2, 3, i + 1)
+        plt.subplot(4, 3, i + 1)
         plt.imshow(cv2.cvtColor(batch.images.full[i], cv2.COLOR_BGR2RGB))
     plt.title('Original')
     plt.show()
 
-    j = 0
+    j = 1
     plt.figure(2)
     for i in range(config.BATCH_SIZE):
-        plt.subplot(2, 3, i + 1)
+        plt.subplot(4, 3, i + 1)
         # if j < len(batch.object_n):
         plt.imshow(batch.instances.mask[i][:, :, j].astype(np.float32))
     plt.title('Masks')
@@ -121,7 +122,7 @@ if __name__ == '__main__':
 
     plt.figure(3)
     for i in range(config.BATCH_SIZE):
-        plt.subplot(2, 3, i + 1)
+        plt.subplot(4, 3, i + 1)
         # if j < len(batch.object_n):
         img = np.concatenate([batch.instances.l[i][:, :, :, j], batch.instances.ab[i][:, :, :, j]], axis=2)
         plt.imshow(cv2.cvtColor((img*255).astype(np.uint8), cv2.COLOR_Lab2RGB))

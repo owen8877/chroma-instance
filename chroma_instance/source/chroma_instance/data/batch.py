@@ -35,7 +35,7 @@ class Batch:
         self.resized_images.l = np.asarray(self.resized_images.l) / 255  # values between 0 and 1
         self.resized_images.ab = np.asarray(self.resized_images.ab) / 255
         self.images.full = np.asarray(self.images.full)
-        self.images.l = np.asarray(self.images.l) / 255
+        self.images.l = np.asarray(self.images.l)
         self.instances.l = np.asarray(self.instances.l) / 255  # values between 0 and 1
         self.instances.ab = np.asarray(self.instances.ab) / 255
         self.instances.bbox = np.asarray(self.instances.bbox)

@@ -13,7 +13,7 @@ from chroma_instance.config.FirstTest import FirstTestConfig
 from chroma_instance.data.generator import Data
 from chroma_instance.model.basic import discriminator_network, RandomWeightedAverage, \
     wasserstein_loss_dummy, gradient_penalty_loss, simple_instance_network
-from chroma_instance.util import write_log, deprocess, reconstruct, prepare_logger
+from chroma_instance.util import write_log, deprocess_float2int, reconstruct_and_save, prepare_logger
 
 GRADIENT_PENALTY_WEIGHT = 10
 
@@ -90,7 +90,7 @@ class InstanceModel:
     def train(self, data, test_data, logger, config, sample_interval=1):
 
         # Create folder to save models if needed.
-        save_models_path = os.path.join(config.MODEL_DIR, config.TEST_NAME)
+        save_models_path = config.MODEL_DIR
         if not os.path.exists(save_models_path):
             os.makedirs(save_models_path)
 
@@ -146,9 +146,9 @@ class InstanceModel:
                 x_box = np.floor(bbox[2:, l] * width).astype(int)
 
                 instance_original = img[y_box[0]:y_box[1], x_box[0]:x_box[1], :]
-                pred_ab_full_size = cv2.resize(deprocess(pred_ab[i]), (x_box[1]-x_box[0], y_box[1]-y_box[0]))
+                pred_ab_full_size = cv2.resize(deprocess_float2int(pred_ab[i]), (x_box[1] - x_box[0], y_box[1] - y_box[0]))
                 labimg_ori = instance_original[:, :, :1]
-                reconstruct(deprocess(labimg_ori), pred_ab_full_size, f'epoch{epoch}_{test_batch.file_names[k][:-4]}_{l}', config)
+                reconstruct_and_save(deprocess_float2int(labimg_ori), pred_ab_full_size, f'epoch{epoch}_{test_batch.file_names[k][:-4]}_{l}', config)
 
 
                 # originalResult = test_batch.images.full[k]
@@ -159,7 +159,7 @@ class InstanceModel:
 
 
 if __name__ == '__main__':
-    config = FirstTestConfig('../../../')
+    config = FirstTestConfig('instance', '../../../')
     train_data = Data(config.TRAIN_DIR, config)
     test_data = Data(config.TEST_DIR, config)
     with prepare_logger(train_data.batch_size, config) as logger:

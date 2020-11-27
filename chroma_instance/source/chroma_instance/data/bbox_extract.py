@@ -80,7 +80,7 @@ def extract_bbox(config, dir, strategy):
 
 
 if __name__ == '__main__':
-    config = FirstTest.FirstTestConfig(ROOT_DIR='../../../')
+    config = FirstTest.FirstTestConfig('bbox_extract', ROOT_DIR='../../../')
     config.COCO_MODEL_PATH = os.path.join(config.ROOT_DIR, "weights/mask_rcnn/coco.h5")
     if not os.path.exists(config.COCO_MODEL_PATH):
         utils.download_trained_weights(config.COCO_MODEL_PATH)

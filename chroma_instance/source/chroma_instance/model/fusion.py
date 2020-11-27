@@ -19,7 +19,7 @@ from chroma_instance.config.FirstTest import FirstTestConfig
 from chroma_instance.data.generator import Data
 from chroma_instance.model.basic import discriminator_network, RandomWeightedAverage, wasserstein_loss_dummy, \
     gradient_penalty_loss
-from chroma_instance.util import write_log, deprocess, reconstruct, prepare_logger
+from chroma_instance.util import write_log, deprocess_float2int, reconstruct_and_save, prepare_logger
 
 GRADIENT_PENALTY_WEIGHT = 10
 
@@ -60,6 +60,13 @@ class WeightGenerator(Layer):
         bg_size = bg_feature.get_shape().as_list()[1:3]
 
         output = []
+
+        combined_instance_feature = pack_instance(instance_feature)
+        combined_instance_weight = self.instance_conv(combined_instance_feature)
+        instance_weights = unpack_instance(combined_instance_weight)
+
+        bg_weights = self.simple_bg_conv(bg_feature)
+
         for i in range(self.batch_size):
             resized_sub_weights = []
             resized_masks = []
@@ -105,8 +112,8 @@ class WeightGenerator(Layer):
     def get_config(self):
         config = super(WeightGenerator, self).get_config()
         config.update({
-            "instance_weights": self.instance_conv.get_weights(),
-            "bg_weights": self.simple_bg_conv.get_weights(),
+            # "instance_weights": self.instance_conv.get_weights(),
+            # "bg_weights": self.simple_bg_conv.get_weights(),
             "units": self.units,
             "batch_size": self.batch_size,
         })
@@ -115,14 +122,36 @@ class WeightGenerator(Layer):
     @classmethod
     def from_config(cls, config):
         obj = cls(config["units"], config["batch_size"])
-        obj.instance_conv.set_weights(config["instance_weights"])
-        obj.simple_bg_conv.set_weights(config["bg_weights"])
+        # obj.instance_conv.set_weights(config["instance_weights"])
+        # obj.simple_bg_conv.set_weights(config["bg_weights"])
         return obj
 
 
-def chroma_color_with_label(shape):
-    input_img = Input(shape=(*shape, 1), name='fg_input_img')
-    input_img_3 = Lambda(lambda x: tf.tile(x, [1, 1, 1, 3]), name='fg_input_tile')(input_img)
+def pack_instance(x):
+    return tf.squeeze(
+              tf.reshape(
+                  tf.transpose(
+                      x,
+                      perm=[0, 4, 1, 2, 3]),
+                  (-1, 1, *x.get_shape().as_list()[1:-1])),
+              axis=1)
+
+
+def unpack_instance(x):
+    return tf.transpose(
+              tf.reshape(
+                  tf.expand_dims(
+                      x,
+                      axis=1),
+                  (-1, MAX_INSTANCES, *x.get_shape().as_list()[1:])),
+              perm=[0, 2, 3, 4, 1])
+
+
+def instance_network(shape):
+    input_img = Input(shape=(*shape, 1, MAX_INSTANCES), name='fg_input_img')
+
+    input_packed = Lambda(lambda x: pack_instance(x), name='fg_pack_input')(input_img)
+    input_img_3 = Lambda(lambda x: tf.tile(x, [1, 1, 1, 3]), name='fg_input_tile')(input_packed)
 
     # VGG16 without top layers
     VGG_model = applications.vgg16.VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
@@ -175,52 +204,15 @@ def chroma_color_with_label(shape):
     conv2d_17 = Conv2D(2, (3, 3), padding='same', strides=(1, 1), activation='sigmoid', name='fg_conv2d_17')(conv2d_16)
     # up_sampling2d_3 = UpSampling2D(size=(2, 2), name='fg_up_sampling2d_3')(conv2d_17)
 
-    generated = Model(input=input_img, outputs=[model_3, conv2d_11, conv2d_13, conv2d_15, conv2d_17])
+    model_3_unpack = Lambda(lambda x: unpack_instance(x), name='fg_model_3_unpack')(model_3)
+    conv2d_11_unpack = Lambda(lambda x: unpack_instance(x), name='fg_conv2d_11_unpack')(conv2d_11)
+    conv2d_13_unpack = Lambda(lambda x: unpack_instance(x), name='fg_conv2d_13_unpack')(conv2d_13)
+    conv2d_15_unpack = Lambda(lambda x: unpack_instance(x), name='fg_conv2d_15_unpack')(conv2d_15)
+    conv2d_17_unpack = Lambda(lambda x: unpack_instance(x), name='fg_conv2d_17_unpack')(conv2d_17)
+    generated = Model(input=input_img,
+                      outputs=[model_3_unpack, conv2d_11_unpack, conv2d_13_unpack, conv2d_15_unpack, conv2d_17_unpack])
 
     return generated
-
-
-class InstanceColorModel(Model):
-    def __init__(self, shape):
-        super(InstanceColorModel, self).__init__()
-        self.shape = shape
-        self.model = chroma_color_with_label(shape)
-
-    def call(self, input, mask=None):
-        output_n = 5
-        all_features = []
-        for j in range(MAX_INSTANCES):
-            all_features.append(self.model(input[:, :, :, :, j]))
-
-        collection = []
-        for l in range(output_n):
-            collection.append(tf.stack([all_features[j][l] for j in range(MAX_INSTANCES)], axis=-1))
-        return collection
-
-    def compute_output_shape(self, input_shape):
-        batch_n, H, _, _, c = input_shape
-        return [
-            (batch_n, H / 8, H / 8, 512, c),
-            (batch_n, H / 8, H / 8, 256, c),
-            (batch_n, H / 8, H / 8, 128, c),
-            (batch_n, H / 4, H / 4, 64, c),
-            (batch_n, H / 2, H / 2, 2, c),
-        ]
-
-    def get_config(self):
-        # config = super(InstanceColorModel, self).get_config()
-        config = {
-            'name': 'InstanceColorModel',
-            "model_weights": self.model.get_weights(),
-            "shape": self.shape,
-        }
-        return config
-
-    @classmethod
-    def from_config(cls, config, custom_objects=None):
-        obj = cls(config["shape"])
-        obj.model.set_weights(config["model_weights"])
-        return obj
 
 
 def fusion_network(shape, batch_size):
@@ -233,7 +225,7 @@ def fusion_network(shape, batch_size):
     # VGG16 without top layers
     VGG_model = applications.vgg16.VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     vgg_model_3_pre = Model(VGG_model.input, VGG_model.layers[-6].output, name='model_3')(input_img_3)
-    fg_model_3 = Input(shape=(*vgg_model_3_pre.shape[1:], MAX_INSTANCES), name='fg_model_3')  # <-
+    fg_model_3 = Input(shape=(*vgg_model_3_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_model_3')  # <-
     vgg_model_3 = WeightGenerator(64, batch_size)([fg_model_3, vgg_model_3_pre, bbox, mask])  # <-
 
     # Global features
@@ -269,7 +261,7 @@ def fusion_network(shape, batch_size):
     batch_normalization_5 = BatchNormalization(name='batch_normalization_5')(conv2d_10)
     conv2d_11_pre = Conv2D(256, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_11')(
         batch_normalization_5)
-    fg_conv2d_11 = Input(shape=(*conv2d_11_pre.shape[1:], MAX_INSTANCES), name='fg_conv2d_11')  # <-
+    fg_conv2d_11 = Input(shape=(*conv2d_11_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_11')  # <-
     conv2d_11 = WeightGenerator(32, batch_size)([fg_conv2d_11, conv2d_11_pre, bbox, mask])  # <-
     batch_normalization_6 = BatchNormalization(name='batch_normalization_6')(conv2d_11)
 
@@ -278,19 +270,19 @@ def fusion_network(shape, batch_size):
 
     conv2d_12 = Conv2D(256, (1, 1), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(concatenate_2)
     conv2d_13_pre = Conv2D(128, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_13')(conv2d_12)
-    fg_conv2d_13 = Input(shape=(*conv2d_13_pre.shape[1:], MAX_INSTANCES), name='fg_conv2d_13')  # <-
+    fg_conv2d_13 = Input(shape=(*conv2d_13_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_13')  # <-
     conv2d_13 = WeightGenerator(16, batch_size)([fg_conv2d_13, conv2d_13_pre, bbox, mask])  # <-
     up_sampling2d_1 = UpSampling2D(size=(2, 2), name='up_sampling2d_1')(conv2d_13)
 
     conv2d_14 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_14')(up_sampling2d_1)
     conv2d_15_pre = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_15')(conv2d_14)
-    fg_conv2d_15 = Input(shape=(*conv2d_15_pre.shape[1:], MAX_INSTANCES), name='fg_conv2d_15')  # <-
+    fg_conv2d_15 = Input(shape=(*conv2d_15_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_15')  # <-
     conv2d_15 = WeightGenerator(16, batch_size)([fg_conv2d_15, conv2d_15_pre, bbox, mask])  # <-
     up_sampling2d_2 = UpSampling2D(size=(2, 2), name='up_sampling2d_2')(conv2d_15)
 
     conv2d_16 = Conv2D(32, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_16')(up_sampling2d_2)
     conv2d_17_pre = Conv2D(2, (3, 3), padding='same', strides=(1, 1), activation='sigmoid', name='conv2d_17')(conv2d_16)
-    fg_conv2d_17 = Input(shape=(*conv2d_17_pre.shape[1:], MAX_INSTANCES), name='fg_conv2d_17')  # <-
+    fg_conv2d_17 = Input(shape=(*conv2d_17_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_17')  # <-
     conv2d_17 = WeightGenerator(16, batch_size)([fg_conv2d_17, conv2d_17_pre, bbox, mask])  # <-
     up_sampling2d_3 = UpSampling2D(size=(2, 2), name='up_sampling2d_3')(conv2d_17)
 
@@ -306,7 +298,7 @@ class FusionModel:
         # Creating generator and discriminator
         optimizer = Adam(0.00002, 0.5)
 
-        self.foreground_generator = InstanceColorModel(img_shape)
+        self.foreground_generator = instance_network(img_shape)
 
         self.fusion_discriminator = discriminator_network(img_shape)
         self.fusion_discriminator.compile(loss=wasserstein_loss_dummy, optimizer=optimizer)
@@ -324,7 +316,7 @@ class FusionModel:
             chroma_gan_layers = [layer.name for layer in chroma_gan.layers]
 
             print('Loading chroma GAN parameter to instance network...')
-            instance_layer_names = [layer.name for layer in self.foreground_generator.model.layers]
+            instance_layer_names = [layer.name for layer in self.foreground_generator.layers]
             for i, layer in enumerate(instance_layer_names):
                 if layer == 'fg_model_3':
                     print('model 3 skip')
@@ -334,7 +326,7 @@ class FusionModel:
                 if layer[:3] == 'fg_':
                     try:
                         j = chroma_gan_layers.index(layer[3:])
-                        self.foreground_generator.model.layers[i].set_weights(chroma_gan.layers[j].get_weights())
+                        self.foreground_generator.layers[i].set_weights(chroma_gan.layers[j].get_weights())
                         print(f'Successfully set weights for layer {layer}')
                     except ValueError:
                         print(f'Layer {layer} not found in chroma gan.')
@@ -359,7 +351,6 @@ class FusionModel:
         # Fusion prediction
         fusion_img_l = Input(shape=(*img_shape, 1))
         fusion_img_real_ab = Input(shape=(*img_shape, 2))
-        # TODO: check if None can be used for a dimension placeholder?
         fg_bbox = Input(shape=(4, MAX_INSTANCES))
         fg_mask = Input(shape=(*img_shape, MAX_INSTANCES))
 
@@ -410,7 +401,7 @@ class FusionModel:
         self.g_loss_array = []
 
     def train(self, data: Data, test_data, log, config, sample_interval=1):
-        save_models_path = os.path.join(config.MODEL_DIR, config.TEST_NAME)
+        save_models_path = config.MODEL_DIR
         if not os.path.exists(save_models_path):
             os.makedirs(save_models_path)
 
@@ -450,8 +441,8 @@ class FusionModel:
                 write_log(self.callback, self.disc_names, d_loss, (epoch * total_batch + batch + 1))
 
                 if batch % 10 == 0:
-                    print("[Epoch %d] [Batch %d/%d] [generator loss: %08f] [discriminator loss: %08f]" % (
-                        epoch, batch, total_batch, g_loss[0], d_loss[0]))
+                    print(f"[Epoch {epoch}] [Batch {batch}/{total_batch}] [generator loss: {g_loss[0]:08f}] [discriminator loss: {d_loss[0]:08f}]")
+
             # save models after each epoch
             save_path = os.path.join(save_models_path, "fusion_combinedEpoch%d.h5" % epoch)
             self.combined.save(save_path)
@@ -481,15 +472,14 @@ class FusionModel:
 
             # print results
             for i in range(test_data.batch_size):
-                originalResult = test_batch.images.full[i]
-                height, width, channels = originalResult.shape
-                predictedAB = cv2.resize(deprocess(fusion_img_pred_ab[i]), (width, height))
-                labimg_ori = np.expand_dims(test_batch.images.l[i], axis=2)
-                reconstruct(deprocess(labimg_ori), predictedAB, f'epoch{epoch}_{test_batch.file_names[i][:-5]}', config)
+                original_full_img = test_batch.images.full[i]
+                height, width, _ = original_full_img.shape
+                pred_ab = cv2.resize(deprocess_float2int(fusion_img_pred_ab[i]), (width, height))
+                reconstruct_and_save(test_batch.images.l[i], pred_ab, f'epoch{epoch}_{test_batch.file_names[i][:-4]}', config)
 
 
 if __name__ == '__main__':
-    config = FirstTestConfig('../../../')
+    config = FirstTestConfig('fusion', ROOT_DIR='../../../')
     train_data = Data(config.TRAIN_DIR, config)
     test_data = Data(config.TEST_DIR, config)
     with prepare_logger(train_data.batch_size, config) as logger:
@@ -497,6 +487,7 @@ if __name__ == '__main__':
 
         print("Initializing Model...")
         colorizationModel = FusionModel(config, load_weight_path='../../../weights/chroma_gan/imagenet.h5')
+        # colorizationModel = FusionModel(config)
         print("Model Initialized!")
 
         print("Start training")
