@@ -20,7 +20,7 @@ class ResizedImages:
 class Images:
     def __init__(self):
         self.full = []  # dim=(w, h, 3)
-        self.l = []  # dim=(w, h)
+        self.l = []  # dim=(w, h, 1)
 
 
 class Batch:
@@ -38,3 +38,5 @@ class Batch:
         self.images.l = np.asarray(self.images.l) / 255
         self.instances.l = np.asarray(self.instances.l) / 255  # values between 0 and 1
         self.instances.ab = np.asarray(self.instances.ab) / 255
+        self.instances.bbox = np.asarray(self.instances.bbox)
+        self.instances.mask = np.asarray(self.instances.mask)

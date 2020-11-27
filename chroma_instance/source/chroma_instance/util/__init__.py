@@ -40,7 +40,7 @@ def write_log(callback, names, logs, batch_no):
         callback.writer.flush()
 
 
-def train(batch_size, config):
+def prepare_logger(batch_size, config):
     # Create log folder if needed.
     log_path = os.path.join(config.LOG_DIR, config.TEST_NAME)
     if not os.path.exists(log_path):

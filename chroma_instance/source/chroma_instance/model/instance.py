@@ -13,7 +13,7 @@ from chroma_instance.config.FirstTest import FirstTestConfig
 from chroma_instance.data.generator import Data
 from chroma_instance.model.basic import discriminator_network, RandomWeightedAverage, \
     wasserstein_loss_dummy, gradient_penalty_loss, simple_instance_network
-from chroma_instance.util import write_log, deprocess, reconstruct, train
+from chroma_instance.util import write_log, deprocess, reconstruct, prepare_logger
 
 GRADIENT_PENALTY_WEIGHT = 10
 
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     config = FirstTestConfig('../../../')
     train_data = Data(config.TRAIN_DIR, config)
     test_data = Data(config.TEST_DIR, config)
-    with train(train_data.batch_size, config) as logger:
+    with prepare_logger(train_data.batch_size, config) as logger:
         logger.write(str(datetime.now()) + "\n")
 
         print("Initializing Model...")

@@ -261,18 +261,18 @@ def simple_instance_network(shape):
 
 
 def discriminator_network(shape):
-    input_ab = Input(shape=(*shape, 2), name='ab_input')
-    input_l = Input(shape=(*shape, 1), name='l_input')
-    net = concatenate([input_l, input_ab])
-    net = Conv2D(64, (4, 4), padding='same', strides=(2, 2))(net)  # 112, 112, 64
-    net = LeakyReLU()(net)
-    net = Conv2D(128, (4, 4), padding='same', strides=(2, 2))(net)  # 56, 56, 128
-    net = LeakyReLU()(net)
-    net = Conv2D(256, (4, 4), padding='same', strides=(2, 2))(net)  # 28, 28, 256
-    net = LeakyReLU()(net)
-    net = Conv2D(512, (4, 4), padding='same', strides=(1, 1))(net)  # 28, 28, 512
-    net = LeakyReLU()(net)
-    net = Conv2D(1, (4, 4), padding='same', strides=(1, 1))(net)  # 28, 28,1
+    input_ab = Input(shape=(*shape, 2), name='d_ab_input')
+    input_l = Input(shape=(*shape, 1), name='d_l_input')
+    net = concatenate([input_l, input_ab], name='d_concat')
+    net = Conv2D(64, (4, 4), padding='same', strides=(2, 2), name='d_conv2d_1')(net)  # 112, 112, 64
+    net = LeakyReLU(name='leakyrelu_1')(net)
+    net = Conv2D(128, (4, 4), padding='same', strides=(2, 2), name='d_conv2d_2')(net)  # 56, 56, 128
+    net = LeakyReLU(name='leakyrelu_2')(net)
+    net = Conv2D(256, (4, 4), padding='same', strides=(2, 2), name='d_conv2d_3')(net)  # 28, 28, 256
+    net = LeakyReLU(name='leakyrelu_3')(net)
+    net = Conv2D(512, (4, 4), padding='same', strides=(1, 1), name='d_conv2d_4')(net)  # 28, 28, 512
+    net = LeakyReLU(name='leakyrelu_4')(net)
+    net = Conv2D(1, (4, 4), padding='same', strides=(1, 1), name='d_conv2d_5')(net)  # 28, 28,1
     return Model([input_ab, input_l], net)
 
 

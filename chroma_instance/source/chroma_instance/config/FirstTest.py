@@ -32,4 +32,4 @@ class FirstTestConfig:
             self.BATCH_SIZE = 10
         else:
             self.NUM_EPOCHS = 2
-            self.BATCH_SIZE = 6
+            self.BATCH_SIZE = 2

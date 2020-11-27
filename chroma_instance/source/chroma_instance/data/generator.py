@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skimage.transform
 
-from chroma_instance.config import Val2017, MAX_INSTANCES
+from chroma_instance.config import Val2017, MAX_INSTANCES, FirstTest
 from chroma_instance.data.batch import Batch
 
 
@@ -29,9 +29,9 @@ class Data:
         img_lab_resized = cv2.cvtColor(img_resized, cv2.COLOR_BGR2Lab)
         img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
 
-        img_l_resized = img_lab_resized[:, :, 0, np.newaxis]
+        img_l_resized = img_lab_resized[:, :, :1]
         img_ab_resized = img_lab_resized[:, :, 1:]
-        img_l = img_lab[:, :, 0]
+        img_l = img_lab[:, :, :1]
         return img_l_resized, img_ab_resized, img_resized, img, img_l
 
     def read_bbox(self, filename, shape):
@@ -42,16 +42,23 @@ class Data:
         x_box_ratio = x_box / shape[1]
 
         object_n = result['object_n']
-        masks = [
-            skimage.transform.resize((result['mask'] == i + 1).astype(float), self.instance_shape).astype(np.float16)
-            for i in range(object_n)]
+        masks = np.zeros((*self.instance_shape, MAX_INSTANCES), dtype=np.float16)
+        for i in range(min(object_n, MAX_INSTANCES)):
+            masks[:, :, i] = skimage.transform.resize((result['mask'] == i + 1).astype(float),
+                                                      self.instance_shape).astype(np.float16)
 
-        return np.concatenate([y_box_ratio, x_box_ratio], axis=1).T, np.stack(masks, axis=-1), object_n
+        bbox = np.zeros((4, MAX_INSTANCES))
+        bbox_full = np.concatenate([y_box_ratio, x_box_ratio], axis=1).T
+        if bbox.shape[1] > bbox_full.shape[1]:
+            bbox[:, :bbox_full.shape[1]] = bbox_full
+        else:
+            bbox[:, :] = bbox_full[:, :bbox.shape[1]]
+        return bbox, masks, object_n
 
-    def segment(self, img, bbox):
+    def segment(self, img, bbox, object_n):
         l = np.zeros((*self.instance_shape, 1, MAX_INSTANCES), dtype=np.uint8)
         ab = np.zeros((*self.instance_shape, 2, MAX_INSTANCES), dtype=np.uint8)
-        for i in range(bbox.shape[1]):
+        for i in range(min(object_n, MAX_INSTANCES)):
             y_box = np.floor(bbox[:2, i] * self.image_shape[0]).astype(int)
             x_box = np.floor(bbox[2:, i] * self.image_shape[1]).astype(int)
 
@@ -80,17 +87,18 @@ class Data:
             batch.instances.mask.append(mask)
             batch.object_n.append(object_n)
 
-            instance_l, instance_ab = self.segment(img_resized, bbox)
+            instance_l, instance_ab = self.segment(img_resized, bbox, object_n)
             batch.instances.l.append(instance_l)
             batch.instances.ab.append(instance_ab)
 
             self.data_index = (self.data_index + 1) % self.size
 
+        batch.normalize()
         return batch
 
 
 if __name__ == '__main__':
-    config = Val2017.Val2017Config(ROOT_DIR='../../../')
+    config = FirstTest.FirstTestConfig(ROOT_DIR='../../../')
     data = Data(config.TRAIN_DIR, config)
 
     batch = data.generate_batch()
@@ -106,16 +114,16 @@ if __name__ == '__main__':
     plt.figure(2)
     for i in range(config.BATCH_SIZE):
         plt.subplot(2, 3, i + 1)
-        if j < len(batch.object_n):
-            plt.imshow(batch.instances.mask[i][:, :, j].astype(np.float32))
+        # if j < len(batch.object_n):
+        plt.imshow(batch.instances.mask[i][:, :, j].astype(np.float32))
     plt.title('Masks')
     plt.show()
 
     plt.figure(3)
     for i in range(config.BATCH_SIZE):
         plt.subplot(2, 3, i + 1)
-        if j < len(batch.object_n):
-            img = np.concatenate([batch.instances.l[i][:, :, :, j], batch.instances.ab[i][:, :, :, j]], axis=2)
-            plt.imshow(cv2.cvtColor(img, cv2.COLOR_Lab2RGB))
+        # if j < len(batch.object_n):
+        img = np.concatenate([batch.instances.l[i][:, :, :, j], batch.instances.ab[i][:, :, :, j]], axis=2)
+        plt.imshow(cv2.cvtColor((img*255).astype(np.uint8), cv2.COLOR_Lab2RGB))
     plt.title(f'Instance L (#{j})')
     plt.show()
