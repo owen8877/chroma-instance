@@ -5,13 +5,14 @@ from functools import partial
 import cv2
 import numpy as np
 import tensorflow as tf
-from keras import Model, applications, Sequential
-from keras.callbacks import TensorBoard
-from keras.engine.saving import load_model
-from keras.layers import Input, BatchNormalization, Dense, Flatten, RepeatVector, Reshape, UpSampling2D, Lambda
-from keras.layers import Layer
-from keras.layers import concatenate, Conv2D
-from keras.optimizers import Adam
+from tensorflow.python.keras import Model, applications, Sequential
+from tensorflow.python.keras.callbacks_v1 import TensorBoard
+from tensorflow.python.keras.engine.saving import load_model
+from tensorflow.python.keras.layers import Input, BatchNormalization, Dense, Flatten, RepeatVector, Reshape, Lambda, \
+    Conv2DTranspose, UpSampling2D
+from tensorflow.python.keras.layers import Layer
+from tensorflow.python.keras.layers import concatenate, Conv2D
+from tensorflow.python.keras.optimizers import Adam
 from tqdm import tqdm
 
 from chroma_instance.config import MAX_INSTANCES
@@ -25,17 +26,19 @@ GRADIENT_PENALTY_WEIGHT = 10
 
 
 class WeightGenerator(Layer):
-    def __init__(self, units, batch_size):
-        super(WeightGenerator, self).__init__()
+    def __init__(self, units, batch_size, **kwargs):
+        super(WeightGenerator, self).__init__(**kwargs)
 
         self.instance_conv = Sequential([
             Conv2D(units, 3, padding='same', strides=1, activation='relu', name='weight_instance_conv1'),
-            Conv2D(1, 3, padding='same', strides=1, activation='relu', name='weight_instance_conv2'),
+            Conv2D(units, 3, padding='same', strides=1, activation='relu', name='weight_instance_conv2'),
+            Conv2D(1, 3, padding='same', strides=1, activation='relu', name='weight_instance_conv3'),
         ])
 
         self.simple_bg_conv = Sequential([
             Conv2D(units, 3, padding='same', strides=1, activation='relu', name='weight_bg_conv1'),
-            Conv2D(1, 3, padding='same', strides=1, activation='relu', name='weight_bg_conv2'),
+            Conv2D(units, 3, padding='same', strides=1, activation='relu', name='weight_bg_conv2'),
+            Conv2D(1, 3, padding='same', strides=1, activation='relu', name='weight_bg_conv3'),
         ])
 
         self.units = units
@@ -72,8 +75,7 @@ class WeightGenerator(Layer):
             resized_masks = []
             for j in range(MAX_INSTANCES):
                 box_info = bbox[i, :, j]  # (4, )
-                instance_sub_feature = instance_feature[i:i + 1, :, :, :, j]  # (1, h, w, c)
-                instance_weight = self.instance_conv(instance_sub_feature)[0, :, :, :]  # (h, w, 1)
+                instance_weight = instance_weights[i, :, :, :, j]  # (h, w, 1)
                 resized_sub_weight = self.resize_and_pad(instance_weight, box_info, bg_size)  # (h_i, w_i, 1)
 
                 instance_mask = mrcnn_mask[i, :, :, j:j + 1]  # (H, W, 1)
@@ -81,8 +83,8 @@ class WeightGenerator(Layer):
 
                 resized_sub_weights.append(resized_sub_weight)
                 resized_masks.append(resized_mask)
-            bg_sub_feature = bg_feature[i:i + 1, :, :, :]
-            bg_weight = self.simple_bg_conv(bg_sub_feature)[0, :, :, :]
+
+            bg_weight = bg_weights[i, :, :, :]
 
             exp_weight = []
             for f, m in zip(resized_sub_weights, resized_masks):
@@ -90,9 +92,7 @@ class WeightGenerator(Layer):
             exp_weight.append(tf.exp(bg_weight))
 
             exp_weight_sum = sum(exp_weight)
-            softmax_weight = []
-            for w in exp_weight:
-                softmax_weight.append(w / exp_weight_sum)
+            softmax_weight = [w / exp_weight_sum for w in exp_weight]
 
             composed = softmax_weight[-1] * bg_feature[i, :, :, :]
             for j in range(MAX_INSTANCES):
@@ -104,7 +104,7 @@ class WeightGenerator(Layer):
             output.append(composed)
 
         stacked_output = tf.stack(output)
-        return stacked_output  # , instance_mask, torch.clamp(mask_list, 0.0, 1.0)
+        return stacked_output
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]
@@ -192,12 +192,14 @@ def instance_network(shape):
     conv2d_12 = Conv2D(256, (1, 1), padding='same', strides=(1, 1), activation='relu', name='fg_conv2d_12')(
         concatenate_2)
     conv2d_13 = Conv2D(128, (3, 3), padding='same', strides=(1, 1), activation='relu', name='fg_conv2d_13')(conv2d_12)
-    up_sampling2d_1 = UpSampling2D(size=(2, 2), name='fg_up_sampling2d_1')(conv2d_13)
+    up_sampling2d_1 = UpSampling2D(size=(2, 2), name='fg_up_sampling2d_1', interpolation='bilinear')(conv2d_13)
+    # conv2dt_1 = Conv2DTranspose(64, (4, 4), padding='same', strides=(2, 2), name='fg_conv2dt_1')(conv2d_13)
 
     conv2d_14 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='fg_conv2d_14')(
         up_sampling2d_1)
     conv2d_15 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='fg_conv2d_15')(conv2d_14)
-    up_sampling2d_2 = UpSampling2D(size=(2, 2), name='fg_up_sampling2d_2')(conv2d_15)
+    up_sampling2d_2 = UpSampling2D(size=(2, 2), name='fg_up_sampling2d_2', interpolation='bilinear')(conv2d_15)
+    # conv2dt_2 = Conv2DTranspose(32, (4, 4), padding='same', strides=(2, 2), name='fg_conv2dt_2')(conv2d_15)
 
     conv2d_16 = Conv2D(32, (3, 3), padding='same', strides=(1, 1), activation='relu', name='fg_conv2d_16')(
         up_sampling2d_2)
@@ -209,7 +211,7 @@ def instance_network(shape):
     conv2d_13_unpack = Lambda(lambda x: unpack_instance(x), name='fg_conv2d_13_unpack')(conv2d_13)
     conv2d_15_unpack = Lambda(lambda x: unpack_instance(x), name='fg_conv2d_15_unpack')(conv2d_15)
     conv2d_17_unpack = Lambda(lambda x: unpack_instance(x), name='fg_conv2d_17_unpack')(conv2d_17)
-    generated = Model(input=input_img,
+    generated = Model(inputs=input_img,
                       outputs=[model_3_unpack, conv2d_11_unpack, conv2d_13_unpack, conv2d_15_unpack, conv2d_17_unpack])
 
     return generated
@@ -226,7 +228,7 @@ def fusion_network(shape, batch_size):
     VGG_model = applications.vgg16.VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     vgg_model_3_pre = Model(VGG_model.input, VGG_model.layers[-6].output, name='model_3')(input_img_3)
     fg_model_3 = Input(shape=(*vgg_model_3_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_model_3')  # <-
-    vgg_model_3 = WeightGenerator(64, batch_size)([fg_model_3, vgg_model_3_pre, bbox, mask])  # <-
+    vgg_model_3 = WeightGenerator(64, batch_size, name='weight_generator_1')([fg_model_3, vgg_model_3_pre, bbox, mask])  # <-
 
     # Global features
     conv2d_6 = Conv2D(512, (3, 3), padding='same', strides=(2, 2), activation='relu', name='conv2d_6')(vgg_model_3)
@@ -262,7 +264,7 @@ def fusion_network(shape, batch_size):
     conv2d_11_pre = Conv2D(256, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_11')(
         batch_normalization_5)
     fg_conv2d_11 = Input(shape=(*conv2d_11_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_11')  # <-
-    conv2d_11 = WeightGenerator(32, batch_size)([fg_conv2d_11, conv2d_11_pre, bbox, mask])  # <-
+    conv2d_11 = WeightGenerator(32, batch_size, name='weight_generator_2')([fg_conv2d_11, conv2d_11_pre, bbox, mask])  # <-
     batch_normalization_6 = BatchNormalization(name='batch_normalization_6')(conv2d_11)
 
     # Fusion of (VGG16 -> Mid-level) + (VGG16 -> Global) + Colorization
@@ -271,20 +273,23 @@ def fusion_network(shape, batch_size):
     conv2d_12 = Conv2D(256, (1, 1), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(concatenate_2)
     conv2d_13_pre = Conv2D(128, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_13')(conv2d_12)
     fg_conv2d_13 = Input(shape=(*conv2d_13_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_13')  # <-
-    conv2d_13 = WeightGenerator(16, batch_size)([fg_conv2d_13, conv2d_13_pre, bbox, mask])  # <-
-    up_sampling2d_1 = UpSampling2D(size=(2, 2), name='up_sampling2d_1')(conv2d_13)
+    conv2d_13 = WeightGenerator(16, batch_size, name='weight_generator_3')([fg_conv2d_13, conv2d_13_pre, bbox, mask])  # <-
+    # conv2dt_1 = Conv2DTranspose(64, (4, 4), padding='same', strides=(2, 2), name='conv2dt_1')(conv2d_13)
+    up_sampling2d_1 = UpSampling2D(size=(2, 2), name='up_sampling2d_1', interpolation='bilinear')(conv2d_13)
 
     conv2d_14 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_14')(up_sampling2d_1)
     conv2d_15_pre = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_15')(conv2d_14)
     fg_conv2d_15 = Input(shape=(*conv2d_15_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_15')  # <-
-    conv2d_15 = WeightGenerator(16, batch_size)([fg_conv2d_15, conv2d_15_pre, bbox, mask])  # <-
-    up_sampling2d_2 = UpSampling2D(size=(2, 2), name='up_sampling2d_2')(conv2d_15)
+    conv2d_15 = WeightGenerator(16, batch_size, name='weight_generator_4')([fg_conv2d_15, conv2d_15_pre, bbox, mask])  # <-
+    # conv2dt_2 = Conv2DTranspose(32, (4, 4), padding='same', strides=(2, 2), name='conv2dt_2')(conv2d_15)
+    up_sampling2d_2 = UpSampling2D(size=(2, 2), name='up_sampling2d_2', interpolation='bilinear')(conv2d_15)
 
     conv2d_16 = Conv2D(32, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_16')(up_sampling2d_2)
     conv2d_17_pre = Conv2D(2, (3, 3), padding='same', strides=(1, 1), activation='sigmoid', name='conv2d_17')(conv2d_16)
     fg_conv2d_17 = Input(shape=(*conv2d_17_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_17')  # <-
-    conv2d_17 = WeightGenerator(16, batch_size)([fg_conv2d_17, conv2d_17_pre, bbox, mask])  # <-
-    up_sampling2d_3 = UpSampling2D(size=(2, 2), name='up_sampling2d_3')(conv2d_17)
+    conv2d_17 = WeightGenerator(16, batch_size, name='weight_generator_5')([fg_conv2d_17, conv2d_17_pre, bbox, mask])  # <-
+    # conv2dt_3 = Conv2DTranspose(2, (4, 4), padding='same', strides=(2, 2), name='conv2dt_3')(conv2d_17)
+    up_sampling2d_3 = UpSampling2D(size=(2, 2), name='up_sampling2d_3', interpolation='bilinear')(conv2d_17)
 
     return Model(
         inputs=[input_img, fg_model_3, fg_conv2d_11, fg_conv2d_13, fg_conv2d_15, fg_conv2d_17, bbox, mask],
@@ -304,12 +309,6 @@ class FusionModel:
         self.fusion_discriminator.compile(loss=wasserstein_loss_dummy, optimizer=optimizer)
         self.fusion_generator = fusion_network(img_shape, config.BATCH_SIZE)
         self.fusion_generator.compile(loss=['mse', 'kld'], optimizer=optimizer)
-
-        # Fg=instance prediction
-        fg_img_l = Input(shape=(*img_shape, 1, MAX_INSTANCES))
-
-        self.foreground_generator.trainable = False
-        fg_model_3, fg_conv2d_11, fg_conv2d_13, fg_conv2d_15, fg_conv2d_17 = self.foreground_generator(fg_img_l)
 
         if load_weight_path:
             chroma_gan = load_model(load_weight_path)
@@ -347,6 +346,12 @@ class FusionModel:
                     print(f'Layer {layer} not found in chroma gan.')
                 except Exception as e:
                     print(e)
+
+        # Fg=instance prediction
+        fg_img_l = Input(shape=(*img_shape, 1, MAX_INSTANCES))
+
+        # self.foreground_generator.trainable = False
+        fg_model_3, fg_conv2d_11, fg_conv2d_13, fg_conv2d_15, fg_conv2d_17 = self.foreground_generator(fg_img_l)
 
         # Fusion prediction
         fusion_img_l = Input(shape=(*img_shape, 1))
@@ -443,6 +448,7 @@ class FusionModel:
                 if batch % 10 == 0:
                     print(f"[Epoch {epoch}] [Batch {batch}/{total_batch}] [generator loss: {g_loss[0]:08f}] [discriminator loss: {d_loss[0]:08f}]")
 
+            print('Saving models...')
             # save models after each epoch
             save_path = os.path.join(save_models_path, "fusion_combinedEpoch%d.h5" % epoch)
             self.combined.save(save_path)
@@ -452,7 +458,9 @@ class FusionModel:
             self.foreground_generator.save(save_path)
             save_path = os.path.join(save_models_path, "fusion_discriminatorEpoch%d.h5" % epoch)
             self.fusion_discriminator.save(save_path)
+            print('Models saved.')
 
+            print('Sampling test images...')
             # sample images after each epoch
             self.sample_images(test_data, epoch, config)
 

@@ -1,12 +1,12 @@
 import keras.backend as K
 import numpy as np
 import tensorflow as tf
-from keras import Model, applications, Sequential
-from keras.layers import Input, BatchNormalization, Dense, Flatten, RepeatVector, Reshape, UpSampling2D, \
+from tensorflow.python.keras import Model, applications, Sequential
+from tensorflow.python.keras.layers import Input, BatchNormalization, Dense, Flatten, RepeatVector, Reshape, UpSampling2D, \
     Conv2DTranspose, Activation, MaxPooling2D
-from keras.layers import concatenate, Conv2D
-from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.merge import _Merge, Concatenate, Add
+from tensorflow.python.keras.layers import concatenate, Conv2D
+from tensorflow.python.keras.layers.advanced_activations import LeakyReLU
+from tensorflow.python.keras.layers.merge import _Merge, Concatenate, Add
 
 
 def bg_colorization_network(shape):

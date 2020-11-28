@@ -1,4 +1,4 @@
-from keras.engine.saving import load_model
+from tensorflow.python.keras.engine.saving import load_model
 
 from chroma_instance.model.fusion import fusion_network
 

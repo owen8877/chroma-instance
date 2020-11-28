@@ -4,6 +4,7 @@ from datetime import datetime
 import cv2
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.keras.callbacks_v1 import TensorBoard
 
 
 def deprocess_float2int(imgs):
@@ -34,7 +35,7 @@ def save_reconstructed_img(config, filename, result):
     return result
 
 
-def write_log(callback, names, logs, batch_no):
+def write_log(callback: TensorBoard, names, logs, batch_no):
     for name, value in zip(names, logs):
         summary = tf.Summary()
         summary_value = summary.value.add()
