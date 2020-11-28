@@ -396,8 +396,7 @@ class FusionModel:
                               optimizer=optimizer)
 
         # Monitor stuff
-        self.log_path = os.path.join(config.LOG_DIR, config.TEST_NAME)
-        self.callback = TensorBoard(self.log_path)
+        self.callback = TensorBoard(config.LOG_DIR)
         self.callback.set_model(self.combined)
         self.train_names = ['loss', 'mse_loss', 'kullback_loss', 'wasserstein_loss']
         self.disc_names = ['disc_loss', 'disc_valid', 'disc_fake', 'disc_gp']
@@ -405,11 +404,7 @@ class FusionModel:
         self.test_loss_array = []
         self.g_loss_array = []
 
-    def train(self, data: Data, test_data, log, config, sample_interval=1):
-        save_models_path = config.MODEL_DIR
-        if not os.path.exists(save_models_path):
-            os.makedirs(save_models_path)
-
+    def train(self, data: Data, test_data, log, config, skip_to_after_epoch=None):
         # Load VGG network
         VGG_modelF = applications.vgg16.VGG16(weights='imagenet', include_top=True)
 
@@ -422,7 +417,20 @@ class FusionModel:
         total_batch = int(data.size / data.batch_size)
         print(f'batch_size={data.batch_size} * total_batch={total_batch}')
 
-        for epoch in range(config.NUM_EPOCHS):
+        save_path = lambda type, epoch: os.path.join(config.MODEL_DIR, f"fusion_{type}Epoch{epoch}.h5")
+
+        if skip_to_after_epoch:
+            start_epoch = skip_to_after_epoch + 1
+            print(f"Loading weights from epoch {skip_to_after_epoch}")
+            self.combined.load_weights(save_path("combined", skip_to_after_epoch))
+            self.fusion_discriminator.load_weights(save_path("discriminator", skip_to_after_epoch))
+            # TODO: change to this next time
+            # self.discriminator_model.load_weights(save_path("discriminator", skip_to_after_epoch))
+            return
+        else:
+            start_epoch = 0
+
+        for epoch in range(start_epoch, config.NUM_EPOCHS):
             for batch in tqdm(range(total_batch)):
                 train_batch = data.generate_batch()
                 resized_l = train_batch.resized_images.l
@@ -449,15 +457,10 @@ class FusionModel:
                     print(f"[Epoch {epoch}] [Batch {batch}/{total_batch}] [generator loss: {g_loss[0]:08f}] [discriminator loss: {d_loss[0]:08f}]")
 
             print('Saving models...')
-            # save models after each epoch
-            save_path = os.path.join(save_models_path, "fusion_combinedEpoch%d.h5" % epoch)
-            self.combined.save(save_path)
-            save_path = os.path.join(save_models_path, "fusion_colorizationEpoch%d.h5" % epoch)
-            self.fusion_generator.save(save_path)
-            save_path = os.path.join(save_models_path, "fusion_instance_colorizationEpoch%d.h5" % epoch)
-            self.foreground_generator.save(save_path)
-            save_path = os.path.join(save_models_path, "fusion_discriminatorEpoch%d.h5" % epoch)
-            self.fusion_discriminator.save(save_path)
+            self.combined.save(save_path("combined", epoch))
+            # self.fusion_generator.save(save_path("colorization", epoch))
+            # self.foreground_generator.save(save_path("instance_colorization", epoch))
+            self.discriminator_model.save(save_path("discriminator", epoch))
             print('Models saved.')
 
             print('Sampling test images...')
@@ -493,10 +496,16 @@ if __name__ == '__main__':
     with prepare_logger(train_data.batch_size, config) as logger:
         logger.write(str(datetime.now()) + "\n")
 
-        print("Initializing Model...")
-        colorizationModel = FusionModel(config, load_weight_path='../../../weights/chroma_gan/imagenet.h5')
-        # colorizationModel = FusionModel(config)
-        print("Model Initialized!")
+        # Scenario 1: fresh start
+        # print("Initializing Model...")
+        # colorizationModel = FusionModel(config, load_weight_path='../../../weights/chroma_gan/imagenet.h5')
+        # print("Model Initialized!")
+        # print("Start training")
+        # colorizationModel.train(train_data, test_data, logger, config=config)
 
+        # Scenario 2: pick up where we left
+        print("Initializing Model...")
+        colorizationModel = FusionModel(config)
+        print("Model Initialized!")
         print("Start training")
-        colorizationModel.train(train_data, test_data, logger, config=config)
+        colorizationModel.train(train_data, test_data, logger, config=config, skip_to_after_epoch=1)

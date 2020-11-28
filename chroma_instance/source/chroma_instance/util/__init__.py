@@ -27,10 +27,7 @@ def reconstruct(batchX, predictedY):
 
 
 def save_reconstructed_img(config, filename, result):
-    save_results_path = os.path.join(config.OUT_DIR, config.TEST_NAME)
-    if not os.path.exists(save_results_path):
-        os.makedirs(save_results_path)
-    save_path = os.path.join(save_results_path, f"{filename}_reconstructed.jpg")
+    save_path = os.path.join(config.OUT_DIR, f"{filename}_reconstructed.jpg")
     cv2.imwrite(save_path, result)
     return result
 
@@ -46,10 +43,5 @@ def write_log(callback: TensorBoard, names, logs, batch_no):
 
 
 def prepare_logger(batch_size, config):
-    # Create log folder if needed.
-    log_path = os.path.join(config.LOG_DIR, config.TEST_NAME)
-    if not os.path.exists(log_path):
-        os.makedirs(log_path)
-
     date_ymd = datetime.now().strftime("%Y%m%d")
-    return open(os.path.join(log_path, f'{date_ymd}_{batch_size}_{config.NUM_EPOCHS}.txt'), "w")
+    return open(os.path.join(config.LOG_DIR, f'{date_ymd}_{batch_size}_{config.NUM_EPOCHS}.txt'), "w")

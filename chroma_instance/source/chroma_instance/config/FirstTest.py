@@ -12,9 +12,9 @@ class FirstTestConfig:
         ROOT_DIR = os.path.abspath(ROOT_DIR)
         self.ROOT_DIR = ROOT_DIR
         self.DATA_DIR = os.path.join(ROOT_DIR, 'dataset/')
-        self.OUT_DIR = os.path.join(ROOT_DIR, f'result/{IDENTIFIER}')
+        self.OUT_DIR = os.path.join(ROOT_DIR, f'result/{IDENTIFIER}/{TEST_NAME}')
         self.MODEL_DIR = os.path.join(ROOT_DIR, f'weights/{IDENTIFIER}/{TEST_NAME}')
-        self.LOG_DIR = os.path.join(ROOT_DIR, f'logs/{IDENTIFIER}')
+        self.LOG_DIR = os.path.join(ROOT_DIR, f'logs/{IDENTIFIER}/{TEST_NAME}')
 
         for dir in (self.DATA_DIR, self.OUT_DIR, self.MODEL_DIR, self.LOG_DIR):
             os.makedirs(dir, exist_ok=True)
@@ -32,5 +32,5 @@ class FirstTestConfig:
             self.NUM_EPOCHS = 5
             self.BATCH_SIZE = 10
         else:
-            self.NUM_EPOCHS = 2
+            self.NUM_EPOCHS = 3
             self.BATCH_SIZE = 1

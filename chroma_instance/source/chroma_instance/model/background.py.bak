@@ -63,7 +63,7 @@ class BackgroundModel:
                               optimizer=optimizer)
 
         # Monitor stuff
-        self.log_path = os.path.join(config.LOG_DIR, config.TEST_NAME)
+        self.log_path = os.path.join(config.LOG_DIR)
         self.callback = TensorBoard(self.log_path)
         self.callback.set_model(self.combined)
         self.train_names = ['loss', 'mse_loss', 'kullback_loss', 'wasserstein_loss']
