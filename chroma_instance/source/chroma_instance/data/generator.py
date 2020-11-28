@@ -36,12 +36,15 @@ class Data:
 
     def read_bbox(self, filename, shape):
         result = np.load(filename)
+        object_n = result['object_n']
+        if object_n == 0:
+            return np.zeros((4, MAX_INSTANCES)), np.zeros((*self.instance_shape, MAX_INSTANCES), dtype=np.float16), 0
+
         y_box = result['rois'][:, [0, 2]]
         x_box = result['rois'][:, [1, 3]]
         y_box_ratio = y_box / shape[0]
         x_box_ratio = x_box / shape[1]
 
-        object_n = result['object_n']
         masks = np.zeros((*self.instance_shape, MAX_INSTANCES), dtype=np.float16)
         for i in range(min(object_n, MAX_INSTANCES)):
             masks[:, :, i] = skimage.transform.resize((result['mask'] == i + 1).astype(float),
