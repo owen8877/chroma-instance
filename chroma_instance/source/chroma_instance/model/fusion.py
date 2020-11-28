@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from functools import partial
+from math import ceil
 
 import cv2
 import numpy as np
@@ -467,7 +468,7 @@ class FusionModel:
             self.sample_images(test_data, epoch, config)
 
     def sample_images(self, test_data: Data, epoch, config):
-        total_batch = int(test_data.size / test_data.batch_size)
+        total_batch = int(ceil(test_data.size / test_data.batch_size))
         for _ in range(total_batch):
             # load test data
             test_batch = test_data.generate_batch()
