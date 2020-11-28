@@ -426,7 +426,6 @@ class FusionModel:
             self.fusion_discriminator.load_weights(save_path("discriminator", skip_to_after_epoch))
             # TODO: change to this next time
             # self.discriminator_model.load_weights(save_path("discriminator", skip_to_after_epoch))
-            return
         else:
             start_epoch = 0
 
