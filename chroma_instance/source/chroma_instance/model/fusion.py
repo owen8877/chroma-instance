@@ -10,9 +10,10 @@ from tensorflow.python.keras import Model, applications, Sequential
 from tensorflow.python.keras.callbacks_v1 import TensorBoard
 from tensorflow.python.keras.engine.saving import load_model
 from tensorflow.python.keras.layers import Input, BatchNormalization, Dense, Flatten, RepeatVector, Reshape, Lambda, \
-    Conv2DTranspose, UpSampling2D
+    UpSampling2D
 from tensorflow.python.keras.layers import Layer
 from tensorflow.python.keras.layers import concatenate, Conv2D
+from tensorflow.python.keras.losses import huber_loss
 from tensorflow.python.keras.optimizers import Adam
 from tqdm import tqdm
 
@@ -130,22 +131,22 @@ class WeightGenerator(Layer):
 
 def pack_instance(x):
     return tf.squeeze(
-              tf.reshape(
-                  tf.transpose(
-                      x,
-                      perm=[0, 4, 1, 2, 3]),
-                  (-1, 1, *x.get_shape().as_list()[1:-1])),
-              axis=1)
+        tf.reshape(
+            tf.transpose(
+                x,
+                perm=[0, 4, 1, 2, 3]),
+            (-1, 1, *x.get_shape().as_list()[1:-1])),
+        axis=1)
 
 
 def unpack_instance(x):
     return tf.transpose(
-              tf.reshape(
-                  tf.expand_dims(
-                      x,
-                      axis=1),
-                  (-1, MAX_INSTANCES, *x.get_shape().as_list()[1:])),
-              perm=[0, 2, 3, 4, 1])
+        tf.reshape(
+            tf.expand_dims(
+                x,
+                axis=1),
+            (-1, MAX_INSTANCES, *x.get_shape().as_list()[1:])),
+        perm=[0, 2, 3, 4, 1])
 
 
 def instance_network(shape):
@@ -229,7 +230,8 @@ def fusion_network(shape, batch_size):
     VGG_model = applications.vgg16.VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     vgg_model_3_pre = Model(VGG_model.input, VGG_model.layers[-6].output, name='model_3')(input_img_3)
     fg_model_3 = Input(shape=(*vgg_model_3_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_model_3')  # <-
-    vgg_model_3 = WeightGenerator(64, batch_size, name='weight_generator_1')([fg_model_3, vgg_model_3_pre, bbox, mask])  # <-
+    vgg_model_3 = WeightGenerator(64, batch_size, name='weight_generator_1')(
+        [fg_model_3, vgg_model_3_pre, bbox, mask])  # <-
 
     # Global features
     conv2d_6 = Conv2D(512, (3, 3), padding='same', strides=(2, 2), activation='relu', name='conv2d_6')(vgg_model_3)
@@ -265,7 +267,8 @@ def fusion_network(shape, batch_size):
     conv2d_11_pre = Conv2D(256, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_11')(
         batch_normalization_5)
     fg_conv2d_11 = Input(shape=(*conv2d_11_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_11')  # <-
-    conv2d_11 = WeightGenerator(32, batch_size, name='weight_generator_2')([fg_conv2d_11, conv2d_11_pre, bbox, mask])  # <-
+    conv2d_11 = WeightGenerator(32, batch_size, name='weight_generator_2')(
+        [fg_conv2d_11, conv2d_11_pre, bbox, mask])  # <-
     batch_normalization_6 = BatchNormalization(name='batch_normalization_6')(conv2d_11)
 
     # Fusion of (VGG16 -> Mid-level) + (VGG16 -> Global) + Colorization
@@ -274,21 +277,24 @@ def fusion_network(shape, batch_size):
     conv2d_12 = Conv2D(256, (1, 1), padding='same', strides=(1, 1), activation='relu', name='conv2d_12')(concatenate_2)
     conv2d_13_pre = Conv2D(128, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_13')(conv2d_12)
     fg_conv2d_13 = Input(shape=(*conv2d_13_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_13')  # <-
-    conv2d_13 = WeightGenerator(16, batch_size, name='weight_generator_3')([fg_conv2d_13, conv2d_13_pre, bbox, mask])  # <-
+    conv2d_13 = WeightGenerator(16, batch_size, name='weight_generator_3')(
+        [fg_conv2d_13, conv2d_13_pre, bbox, mask])  # <-
     # conv2dt_1 = Conv2DTranspose(64, (4, 4), padding='same', strides=(2, 2), name='conv2dt_1')(conv2d_13)
     up_sampling2d_1 = UpSampling2D(size=(2, 2), name='up_sampling2d_1', interpolation='bilinear')(conv2d_13)
 
     conv2d_14 = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_14')(up_sampling2d_1)
     conv2d_15_pre = Conv2D(64, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_15')(conv2d_14)
     fg_conv2d_15 = Input(shape=(*conv2d_15_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_15')  # <-
-    conv2d_15 = WeightGenerator(16, batch_size, name='weight_generator_4')([fg_conv2d_15, conv2d_15_pre, bbox, mask])  # <-
+    conv2d_15 = WeightGenerator(16, batch_size, name='weight_generator_4')(
+        [fg_conv2d_15, conv2d_15_pre, bbox, mask])  # <-
     # conv2dt_2 = Conv2DTranspose(32, (4, 4), padding='same', strides=(2, 2), name='conv2dt_2')(conv2d_15)
     up_sampling2d_2 = UpSampling2D(size=(2, 2), name='up_sampling2d_2', interpolation='bilinear')(conv2d_15)
 
     conv2d_16 = Conv2D(32, (3, 3), padding='same', strides=(1, 1), activation='relu', name='conv2d_16')(up_sampling2d_2)
     conv2d_17_pre = Conv2D(2, (3, 3), padding='same', strides=(1, 1), activation='sigmoid', name='conv2d_17')(conv2d_16)
     fg_conv2d_17 = Input(shape=(*conv2d_17_pre.get_shape().as_list()[1:], MAX_INSTANCES), name='fg_conv2d_17')  # <-
-    conv2d_17 = WeightGenerator(16, batch_size, name='weight_generator_5')([fg_conv2d_17, conv2d_17_pre, bbox, mask])  # <-
+    conv2d_17 = WeightGenerator(16, batch_size, name='weight_generator_5')(
+        [fg_conv2d_17, conv2d_17_pre, bbox, mask])  # <-
     # conv2dt_3 = Conv2DTranspose(2, (4, 4), padding='same', strides=(2, 2), name='conv2dt_3')(conv2d_17)
     up_sampling2d_3 = UpSampling2D(size=(2, 2), name='up_sampling2d_3', interpolation='bilinear')(conv2d_17)
 
@@ -298,7 +304,7 @@ def fusion_network(shape, batch_size):
 
 
 class FusionModel:
-    def __init__(self, config, load_weight_path=None):
+    def __init__(self, config, load_weight_path=None, ab_loss='mse'):
         img_shape = (config.IMAGE_SIZE, config.IMAGE_SIZE)
 
         # Creating generator and discriminator
@@ -309,7 +315,7 @@ class FusionModel:
         self.fusion_discriminator = discriminator_network(img_shape)
         self.fusion_discriminator.compile(loss=wasserstein_loss_dummy, optimizer=optimizer)
         self.fusion_generator = fusion_network(img_shape, config.BATCH_SIZE)
-        self.fusion_generator.compile(loss=['mse', 'kld'], optimizer=optimizer)
+        self.fusion_generator.compile(loss=[ab_loss, 'kld'], optimizer=optimizer)
 
         if load_weight_path:
             chroma_gan = load_model(load_weight_path)
@@ -392,7 +398,7 @@ class FusionModel:
         self.fusion_discriminator.trainable = False
         self.combined = Model(inputs=[fusion_img_l, fg_img_l, fg_bbox, fg_mask],
                               outputs=[fusion_img_pred_ab, fusion_class_vec, dis_pred_ab])
-        self.combined.compile(loss=['mse', 'kld', wasserstein_loss_dummy],
+        self.combined.compile(loss=[ab_loss, 'kld', wasserstein_loss_dummy],
                               loss_weights=[1.0, 0.003, -0.1],
                               optimizer=optimizer)
 
@@ -425,8 +431,6 @@ class FusionModel:
             print(f"Loading weights from epoch {skip_to_after_epoch}")
             self.combined.load_weights(save_path("combined", skip_to_after_epoch))
             self.fusion_discriminator.load_weights(save_path("discriminator", skip_to_after_epoch))
-            # TODO: change to this next time
-            # self.discriminator_model.load_weights(save_path("discriminator", skip_to_after_epoch))
         else:
             start_epoch = 0
 
@@ -454,13 +458,12 @@ class FusionModel:
                 write_log(self.callback, self.disc_names, d_loss, (epoch * total_batch + batch + 1))
 
                 if batch % 10 == 0:
-                    print(f"[Epoch {epoch}] [Batch {batch}/{total_batch}] [generator loss: {g_loss[0]:08f}] [discriminator loss: {d_loss[0]:08f}]")
+                    print(
+                        f"[Epoch {epoch}] [Batch {batch}/{total_batch}] [generator loss: {g_loss[0]:08f}] [discriminator loss: {d_loss[0]:08f}]")
 
             print('Saving models...')
             self.combined.save(save_path("combined", epoch))
-            # self.fusion_generator.save(save_path("colorization", epoch))
-            # self.foreground_generator.save(save_path("instance_colorization", epoch))
-            self.discriminator_model.save(save_path("discriminator", epoch))
+            self.fusion_discriminator.save(save_path("discriminator", epoch))
             print('Models saved.')
 
             print('Sampling test images...')
@@ -486,26 +489,50 @@ class FusionModel:
                 original_full_img = test_batch.images.full[i]
                 height, width, _ = original_full_img.shape
                 pred_ab = cv2.resize(deprocess_float2int(fusion_img_pred_ab[i]), (width, height))
-                reconstruct_and_save(test_batch.images.l[i], pred_ab, f'epoch{epoch}_{test_batch.file_names[i][:-4]}', config)
+                reconstruct_and_save(test_batch.images.l[i], pred_ab, f'epoch{epoch}_{test_batch.file_names[i][:-4]}',
+                                     config)
 
 
 if __name__ == '__main__':
-    config = FirstTestConfig('fusion', ROOT_DIR='../../../')
-    train_data = Data(config.TRAIN_DIR, config)
-    test_data = Data(config.TEST_DIR, config)
-    with prepare_logger(train_data.batch_size, config) as logger:
-        logger.write(str(datetime.now()) + "\n")
+    config_name = 'fusion_2obj_huber'
+    if config_name == 'fusion_2obj':
+        config = FirstTestConfig('fusion_2obj', ROOT_DIR='../../../')
+        train_data = Data(config.TRAIN_DIR, config)
+        test_data = Data(config.TEST_DIR, config)
+        with prepare_logger(train_data.batch_size, config) as logger:
+            logger.write(str(datetime.now()) + "\n")
 
-        # Scenario 1: fresh start
-        # print("Initializing Model...")
-        # colorizationModel = FusionModel(config, load_weight_path='../../../weights/chroma_gan/imagenet.h5')
-        # print("Model Initialized!")
-        # print("Start training")
-        # colorizationModel.train(train_data, test_data, logger, config=config)
+            # Scenario 1: fresh start
+            # print("Initializing Model...")
+            # colorizationModel = FusionModel(config, load_weight_path='../../../weights/chroma_gan/imagenet.h5')
+            # print("Model Initialized!")
+            # print("Start training")
+            # colorizationModel.train(train_data, test_data, logger, config=config)
 
-        # Scenario 2: pick up where we left
-        print("Initializing Model...")
-        colorizationModel = FusionModel(config)
-        print("Model Initialized!")
-        print("Start training")
-        colorizationModel.train(train_data, test_data, logger, config=config, skip_to_after_epoch=1)
+            # Scenario 2: pick up where we left
+            print("Initializing Model...")
+            colorizationModel = FusionModel(config)
+            print("Model Initialized!")
+            print("Start training")
+            colorizationModel.train(train_data, test_data, logger, config=config, skip_to_after_epoch=1)
+    elif config_name == 'fusion_2obj_huber':
+        config = FirstTestConfig('fusion_2obj_huber', ROOT_DIR='../../../')
+        train_data = Data(config.TRAIN_DIR, config)
+        test_data = Data(config.TEST_DIR, config)
+        with prepare_logger(train_data.batch_size, config) as logger:
+            logger.write(str(datetime.now()) + "\n")
+
+            # Scenario 1: fresh start
+            print("Initializing Model...")
+            colorizationModel = FusionModel(config, load_weight_path='../../../weights/chroma_gan/imagenet.h5',
+                                            ab_loss=lambda y_true, y_pred: huber_loss(y_true, y_pred, delta=0.05) * 2)
+            print("Model Initialized!")
+            print("Start training")
+            colorizationModel.train(train_data, test_data, logger, config=config)
+
+            # Scenario 2: pick up where we left
+            # print("Initializing Model...")
+            # colorizationModel = FusionModel(config)
+            # print("Model Initialized!")
+            # print("Start training")
+            # colorizationModel.train(train_data, test_data, logger, config=config, skip_to_after_epoch=1)
