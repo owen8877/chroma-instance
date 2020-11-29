@@ -12,7 +12,7 @@ from chroma_instance.data.batch import Batch
 class Data:
     def __init__(self, dirname, config, limit=None):
         self.dir_path = os.path.join(config.DATA_DIR, dirname)
-        self.file_list = list(filter(lambda f: '.jpg' in f, os.listdir(self.dir_path)))
+        self.file_list = list(filter(lambda f: '.jpg' in f or '.jpeg' in f or '.JPG' in f or '.JPEG' in f, os.listdir(self.dir_path)))
         if limit:
             self.file_list = self.file_list[:limit]
         self.size = len(self.file_list)
