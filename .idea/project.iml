@@ -6,6 +6,7 @@
       <excludeFolder url="file://$MODULE_DIR$/ChromaGAN" />
       <excludeFolder url="file://$MODULE_DIR$/InstColorization" />
       <excludeFolder url="file://$MODULE_DIR$/Mask_RCNN" />
+      <excludeFolder url="file://$MODULE_DIR$/chroma_instance/dataset" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.7 (mypy37env)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

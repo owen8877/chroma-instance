@@ -27,7 +27,8 @@ def reconstruct(batchX, predictedY):
 
 
 def save_reconstructed_img(config, filename, result):
-    save_path = os.path.join(config.OUT_DIR, f"{filename}_reconstructed.jpg")
+    os.makedirs(config.OUT_DIR, config.TEST_DIR, exist_ok=True)
+    save_path = os.path.join(config.OUT_DIR, f"{config.TEST_DIR}/{filename}_reconstructed.jpg")
     cv2.imwrite(save_path, result)
     return result
 

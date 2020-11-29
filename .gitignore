@@ -77,11 +77,10 @@ fabric.properties
 
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
-/chroma_instance/dataset/raw/
+/chroma_instance/dataset/*
 /chroma_instance/logs/
 /chroma_instance/result/
 /chroma_instance/weights/chroma_instance/
 /chroma_instance/dataset/train*/
 *.npy
 *.npz
-/chroma_instance/dataset/val2017/

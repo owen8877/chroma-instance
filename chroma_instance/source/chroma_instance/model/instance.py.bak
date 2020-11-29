@@ -155,7 +155,7 @@ class InstanceModel:
                 # height, width, channels = originalResult.shape
                 # predictedAB = cv2.resize(deprocess(pred_ab[i]), (width, height))
                 # labimg_ori = np.expand_dims(test_batch.images.l[i], axis=2)
-                # reconstruct(deprocess(labimg_ori), predictedAB, f'epoch{epoch}_{test_batch.file_names[i][:-4]}', config)
+                # reconstruct(deprocess(labimg_ori), predictedAB, f'epoch{epoch}_{test_batch.file_names[i][:-5]}', config)
 
 
 if __name__ == '__main__':

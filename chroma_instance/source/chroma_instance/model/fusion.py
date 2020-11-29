@@ -10,9 +10,7 @@ from tensorflow.python.keras import Model, applications, Sequential
 from tensorflow.python.keras.callbacks_v1 import TensorBoard
 from tensorflow.python.keras.engine.saving import load_model
 from tensorflow.python.keras.layers import Input, BatchNormalization, Dense, Flatten, RepeatVector, Reshape, Lambda, \
-    UpSampling2D
-from tensorflow.python.keras.layers import Layer
-from tensorflow.python.keras.layers import concatenate, Conv2D
+    UpSampling2D, Layer, concatenate, Conv2D
 from tensorflow.python.keras.losses import huber_loss
 from tensorflow.python.keras.optimizers import Adam
 from tqdm import tqdm
@@ -489,7 +487,7 @@ class FusionModel:
                 original_full_img = test_batch.images.full[i]
                 height, width, _ = original_full_img.shape
                 pred_ab = cv2.resize(deprocess_float2int(fusion_img_pred_ab[i]), (width, height))
-                reconstruct_and_save(test_batch.images.l[i], pred_ab, f'epoch{epoch}_{test_batch.file_names[i][:-4]}',
+                reconstruct_and_save(test_batch.images.l[i], pred_ab, f'epoch{epoch}_{test_batch.file_names[i]}',
                                      config)
 
 
