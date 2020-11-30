@@ -84,3 +84,4 @@ fabric.properties
 /chroma_instance/dataset/train*/
 *.npy
 *.npz
+/chroma_instance/source/lpips_tensorflow/
