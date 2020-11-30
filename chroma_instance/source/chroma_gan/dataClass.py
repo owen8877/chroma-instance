@@ -21,7 +21,7 @@ class DATA():
 
     def __init__(self, dirname):
         self.dir_path = os.path.join(config.DATA_DIR, dirname)
-        self.filelist = list(filter(lambda f: '.jpg' in f, os.listdir(self.dir_path)))
+        self.filelist = list(filter(lambda f: '.jpg' in f or '.jpeg' in f or '.JPG' in f or '.JPEG' in f, os.listdir(self.dir_path)))
         self.batch_size = config.BATCH_SIZE
         self.size = len(self.filelist)
         self.data_index = 0
