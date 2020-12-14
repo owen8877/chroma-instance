@@ -411,7 +411,7 @@ class FusionModel:
         # Monitor stuff
         self.callback = TensorBoard(config.LOG_DIR)
         self.callback.set_model(self.combined)
-        self.train_names = ['loss', 'mse_loss', 'kullback_loss', 'wasserstein_loss']
+        self.train_names = ['loss', 'mse_loss', 'msei_loss', 'kullback_loss', 'wasserstein_loss']
         self.disc_names = ['disc_loss', 'disc_valid', 'disc_fake', 'disc_gp']
 
         self.test_loss_array = []
