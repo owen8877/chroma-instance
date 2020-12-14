@@ -68,9 +68,9 @@ theorems-ams-extended
 \shortcut idx
 \color #008000
 \end_index
-\leftmargin 2.5cm
+\leftmargin 3cm
 \topmargin 2.5cm
-\rightmargin 2.5cm
+\rightmargin 3cm
 \bottommargin 2.5cm
 \secnumdepth 3
 \tocdepth 3
@@ -80,7 +80,7 @@ theorems-ams-extended
 \math_numbering_side default
 \quotes_style english
 \dynamic_quotes 0
-\papercolumns 2
+\papercolumns 1
 \papersides 1
 \paperpagestyle default
 \tracking_changes false
@@ -102,71 +102,18 @@ filename "/home/xdroid/.lyx/templates/math_shorthand.lyx"
 
 \end_layout
 
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-title{ChromaInstance: Instance-Aware Adversarial Picture Colorization}
+\begin_layout Title
+ChromaInstance: Instance-Aware Adversarial Picture Colorization
 \end_layout
 
-\begin_layout Plain Layout
-
-
-\backslash
-author{Ziheng Chen}
+\begin_layout Author
+Ziheng Chen
 \end_layout
 
-\begin_layout Plain Layout
-
-
-\backslash
-twocolumn[
-\end_layout
-
-\begin_layout Plain Layout
-
-
-\backslash
-maketitle
-\end_layout
-
-\begin_layout Plain Layout
-
-
-\backslash
-begin{onecolabstract}
-\end_layout
-
-\begin_layout Plain Layout
-
+\begin_layout Abstract
 chromagan+instcolorization.
  Utilize vgg as feature extraction, gan structure.
- compare effect of differentloss functions.
-\end_layout
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\begin_layout Plain Layout
-
-
-\backslash
-end{onecolabstract}
-\end_layout
-
-\begin_layout Plain Layout
-
-]
-\end_layout
-
-\end_inset
-
-
+ compare effect of differentloss functions
 \end_layout
 
 \begin_layout Section
@@ -192,12 +139,346 @@ Review on Related Work
 Proposed Method
 \end_layout
 
-\begin_layout Subsection
-Overview
+\begin_layout Standard
+Given a grayscale input image 
+\begin_inset Formula $L\in\bR^{H\times W}$
+\end_inset
+
+, we propose a system 
+\begin_inset Formula $\cG$
+\end_inset
+
+ which predicts the color pair 
+\begin_inset Formula $\left(a,b\right)$
+\end_inset
+
+ where 
+\begin_inset Formula $a,b\in\bR^{H\times W}$
+\end_inset
+
+ so that the triplet 
+\begin_inset Formula $\left(L,a,b\right)$
+\end_inset
+
+ recovers the colored image in the CIELAB color space.
+ In the proposed system, 
+\begin_inset Formula $\cG$
+\end_inset
+
+ is learnt by means of an adversarial learning strategy where the generator
+ 
+\begin_inset Formula $\cG$
+\end_inset
+
+ tries to mimic the desired distribution so that the discriminator 
+\begin_inset Formula $\cD$
+\end_inset
+
+ cannot tell the difference, even though the latter is best at distinguishing
+ the truth and generated distributions.
+ The general structure is shown in Fig.
+ ?.
+ 
+\begin_inset Marginal
+status collapsed
+
+\begin_layout Plain Layout
+fig
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The design of the generator shares the same idea in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Su2020"
+literal "false"
+
+\end_inset
+
+ where the instances are paid additional attention on top of the background.
+ First, we utilize the off-the-shelf pre-trained object detector to extract
+ multiple bounding boxes 
+\begin_inset Formula $\left\{ B_{i}\right\} $
+\end_inset
+
+ (tuples of four anchors) as well as masks 
+\begin_inset Formula $\left\{ M_{i}\right\} $
+\end_inset
+
+ (boolean matrices) from the grascale image 
+\begin_inset Formula $L$
+\end_inset
+
+.
+ We resize the full image according to the bounding boxes to get the instance
+ images 
+\begin_inset Formula $\left\{ L_{i}\right\} $
+\end_inset
+
+.
+ Then we feed 
+\begin_inset Formula $L$
+\end_inset
+
+ and 
+\begin_inset Formula $\left\{ L_{i}\right\} $
+\end_inset
+
+ into the background and instance color generator 
+\begin_inset Formula $\cG_{b}$
+\end_inset
+
+ and 
+\begin_inset Formula $\cG_{i}$
+\end_inset
+
+ respectively which yields the intermediate features 
+\begin_inset Formula $\cF$
+\end_inset
+
+ and 
+\begin_inset Formula $\cF_{i}$
+\end_inset
+
+.
+ After that, a fusion module combines the intermediate features in a layer-by-la
+yer fashion and finally outputs the prediction 
+\begin_inset Formula $\cG\left(L\right)=\left(a,b\right)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+It is also useful to utilize the semantic information of the input grayscale
+ image, adopted in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Su2020"
+literal "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Vitoria2020"
+literal "false"
+
+\end_inset
+
+, which can potentially help the colorization precedure since the classification
+ of a given object may correlate with the color distribution.
 \end_layout
 
 \begin_layout Subsection
 GAN Structure
+\end_layout
+
+\begin_layout Standard
+The generators for the full and instance images share the same structure
+ but the associate weights are different.
+ To represent the predictions of the color pair 
+\begin_inset Formula $\left(a,b\right)$
+\end_inset
+
+ and the classification 
+\begin_inset Formula $y$
+\end_inset
+
+, we use 
+\begin_inset Formula $\cG^{1}\left(L\right)$
+\end_inset
+
+ to denote the former and 
+\begin_inset Formula $\cG_{\cdot}^{2}\left(L\right)$
+\end_inset
+
+ for the latter, where the dotted position can be either 
+\begin_inset Formula $b$
+\end_inset
+
+ or 
+\begin_inset Formula $i$
+\end_inset
+
+ depending on which component is being processed.
+ We discuss the general GAN structure design in this subsection and leave
+ the concrete construction of the generator to the next subsection.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+Loss Function Design
+\end_layout
+
+\begin_layout Standard
+By the adversarial strategy, we shall include the following parts in the
+ loss function design:
+\end_layout
+
+\begin_layout Itemize
+The color error loss 
+\begin_inset Formula 
+\[
+\cL_{e}\left(\cG^{1}\right)=\bE_{\left(L,a_{r},b_{r}\right)\sim\bP_{r}}\left[l\left(\cG_{\cdot}^{1}\left(L\right),\left(a_{r},b_{r}\right)\right)\right]
+\]
+
+\end_inset
+
+measures how well the color is predicted where 
+\begin_inset Formula $l$
+\end_inset
+
+ is a general loss function and 
+\begin_inset Formula $\bP_{r}$
+\end_inset
+
+ stands for the distribution of real color images and 
+\begin_inset Formula $\left(a_{r},b_{r}\right)$
+\end_inset
+
+ is the ground truth color associated with 
+\begin_inset Formula $L$
+\end_inset
+
+.
+ The choice of 
+\begin_inset Formula $l$
+\end_inset
+
+ can be either 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+ loss or the Huber loss.
+\end_layout
+
+\begin_layout Itemize
+The class distribution loss
+\begin_inset Formula 
+\[
+\cL_{s}\left(\cG_{\cdot}^{2}\right)=\bE_{\left(L,\dots\right)\sim\bP_{r}}\left[\text{KL}\left(y_{g}||\cG_{\cdot}^{2}\left(L\right)\right)\right]
+\]
+
+\end_inset
+
+measures how well the class of the image is predicted, where 
+\begin_inset Formula $y_{g}$
+\end_inset
+
+ is the label predicted by a pre-trained network and 
+\begin_inset Formula $\text{KL}\left(\cdot||\cdot\right)$
+\end_inset
+
+ stands for Kullback-Leibler divergence.
+\end_layout
+
+\begin_layout Itemize
+The WGAN loss
+\begin_inset Formula 
+\begin{align*}
+\cL_{g}\left(\cG^{1},\cD\right) & =\bE_{\widetilde{I}\sim\bP_{r}}\left[\cD\left(\widetilde{I}\right)\right]\\
+ & -\bE_{\left(a,b\right)\sim\bP_{\cG^{1}}}\left[\cD\left(L,a,b\right)\right]\\
+ & -\bE_{\widehat{I}\sim\bP_{\widehat{I}}}\left[\left(\norm{\nabla_{\widehat{I}}\cD\left(\widehat{I}\right)}_{2}-1\right)^{2}\right]
+\end{align*}
+
+\end_inset
+
+measures how well the generator 
+\begin_inset Quotes eld
+\end_inset
+
+fools
+\begin_inset Quotes erd
+\end_inset
+
+ the discriminator and how well the discriminator counter-strikes, which
+ is an approximation to the Wasserstein distance 
+\begin_inset Formula $W^{2}\left(\bP_{r},\bP_{\cG^{1}}\right)$
+\end_inset
+
+ by using the Kantorovich-Rubinstein duality as in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Gulrajani2017"
+literal "false"
+
+\end_inset
+
+ where 
+\begin_inset Formula $\cD\in\sD$
+\end_inset
+
+, the set of 1-Lipschitz functions, and 
+\begin_inset Formula $\bP_{\widehat{I}}$
+\end_inset
+
+ is sampled along straight lines between pairs of point sampled between
+ 
+\begin_inset Formula $\bP_{r}$
+\end_inset
+
+ and 
+\begin_inset Formula $\bP_{\cG^{1}}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Thus the objective is 
+\begin_inset Formula 
+\[
+\min_{\cG}\max_{\cD\in\sD}\cL_{e}\left(\cG^{1}\right)+\lambda_{s}\cL_{s}\left(\cG_{\cdot}^{2}\right)+\lambda_{g}\cL_{g}\left(\cG^{1},\cD\right).
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Discriminator Design
+\end_layout
+
+\begin_layout Standard
+We use the same structure as in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Vitoria2020"
+literal "false"
+
+\end_inset
+
+ based on the Markovian discriminator architecture in PatchGAN.
+ This design keeps track of the high-frequency structures of the generated
+ image to compensate the loss of details caused by the 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+ loss 
+\begin_inset Formula $\cL_{e}\left(\cG^{1}\right)$
+\end_inset
+
+.
+ For more information, we refer to Fig.
+ ?
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+fig!
+\end_layout
+
+\end_inset
+
+ and our implementation.
 \end_layout
 
 \begin_layout Subsection
@@ -208,20 +489,224 @@ Instance-aware Generator
 Object Detection
 \end_layout
 
+\begin_layout Standard
+As proposed in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Su2020"
+literal "false"
+
+\end_inset
+
+, the use of object detection greatly helps to improve image colorization.
+ To this end, we utilize Mask R-CNN, an off-the-shelf pre-trained object
+ detector which yields the bounding boxes 
+\begin_inset Formula $\left\{ B_{i}\right\} $
+\end_inset
+
+ as well as the masks 
+\begin_inset Formula $\left\{ M_{i}\right\} $
+\end_inset
+
+ of each object.
+ To colorize each instance, we resize the cropped image back to 
+\begin_inset Formula $224\times224$
+\end_inset
+
+, i.e.
+ the size of the full image.
+ See Fig.
+ ? for illustration.
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+fig!
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsubsection
 Image Colorization Backbone
+\end_layout
+
+\begin_layout Standard
+We use the same network design as in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Vitoria2020"
+literal "false"
+
+\end_inset
+
+ which is an extension to the existing VGG16 design.
+ As shown in Fig.
+ ?
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+fig!
+\end_layout
+
+\end_inset
+
+, we add the convolutional and upsampling layers on top of existing layers
+ in VGG16.
+ Besides, there is an merge of global features (the classification of the
+ input image) back into the mid-level features, which helps to fix the global
+ color distribution.
+ The most important part is the fusion 
+\begin_inset Quotes eld
+\end_inset
+
+checkpoint
+\begin_inset Quotes erd
+\end_inset
+
+ where the instance features are applied to the background features with
+ certain weights calculated by the content and the masks; we elaborate the
+ details in the following subsection.
+ The merged features are then passed to the next layer in the background
+ colorization network.
 \end_layout
 
 \begin_layout Subsubsection
 Fusion Module
 \end_layout
 
-\begin_layout Subsection
-Loss Function Design
+\begin_layout Standard
+As mentioned above, the fusion module aims to provide better colorization
+ results by fusing features extracted from the instances as well as the
+ full image.
+ For simplicity, we only consider the 
+\begin_inset Formula $j$
+\end_inset
+
+-th fusion module, which takes input: (1) the full image feature 
+\begin_inset Formula $\cF^{j}\in\bR^{H\times W\times C}$
+\end_inset
+
+; (2) the instance features, bounding boxes and masks 
+\begin_inset Formula $\left\{ \cF_{i}^{j},B_{i},M_{i}\right\} $
+\end_inset
+
+, where 
+\begin_inset Formula $\cF_{i}^{j}\in\bR^{H_{i}\times W_{i}\times C},B_{i}\in\bR^{4},M_{i}\in\bR^{H_{i}\times W_{i}}$
+\end_inset
+
+.
+ With slight abuse of notation, all variables with subscript 
+\begin_inset Formula $i$
+\end_inset
+
+ are associated with instances and those without are associated with the
+ full image.
+\end_layout
+
+\begin_layout Standard
+As illustrated in Fig.
+ ?
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+fig!
+\end_layout
+
+\end_inset
+
+, both instance and full image features 
+\begin_inset Formula $\cF_{i}^{j}$
+\end_inset
+
+ and 
+\begin_inset Formula $\cF^{j}$
+\end_inset
+
+ are passed through a network containing three convolutional layers to get
+ the weight map 
+\begin_inset Formula $\cW_{i}^{j}$
+\end_inset
+
+ and 
+\begin_inset Formula $\cW^{j}$
+\end_inset
+
+.
+ However, we need to transform 
+\begin_inset Formula $\cW_{i}^{j}$
+\end_inset
+
+ into the correct shape since it has the same dimension as 
+\begin_inset Formula $\cW^{j}$
+\end_inset
+
+ and cannot fit in.
+ To achieve this, 
+\begin_inset Formula $\cW_{i}^{j}$
+\end_inset
+
+ is resized to the corresponding dimension indicated by bounding box 
+\begin_inset Formula $B_{i}$
+\end_inset
+
+, masked by 
+\begin_inset Formula $M_{i}$
+\end_inset
+
+ and padding with 
+\begin_inset Formula $-\infty$
+\end_inset
+
+.
+ We then apply pixel-wise softmax to 
+\begin_inset Formula $\cW^{j}$
+\end_inset
+
+ and the resized map 
+\begin_inset Formula $\widetilde{\cW}_{i}^{j}$
+\end_inset
+
+ to get the normalized weights 
+\begin_inset Formula $W^{j}$
+\end_inset
+
+ and 
+\begin_inset Formula $W_{i}^{j}$
+\end_inset
+
+.
+ Finally, the fused features is given by
+\begin_inset Formula 
+\[
+W^{j}\odot\cF^{j}+\sum_{i}W_{i}^{j}\odot\widehat{\cF}_{i}^{j}
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\odot$
+\end_inset
+
+ is the element-wise product along the channel dimension and 
+\begin_inset Formula $\widehat{\cF}_{i}^{j}$
+\end_inset
+
+ is the resized instance feature.
 \end_layout
 
 \begin_layout Section
 Experiment
+\end_layout
+
+\begin_layout Standard
+In this section, we describe the setting of the numerical experiment including
+ the choices of dataset, metric and loss function, compare our model with
+ several baselines, and give some visual comparison among related models.
 \end_layout
 
 \begin_layout Subsection
@@ -232,8 +717,155 @@ Setting
 Dataset
 \end_layout
 
+\begin_layout Standard
+We train and test our model on the following datasets:
+\end_layout
+
+\begin_layout Itemize
+Imagenet ctest 
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+ref
+\end_layout
+
+\end_inset
+
+: Imagenet dataset has been used to train a lot of vision neural networks
+ due to its large number of training contents.
+ We select 4k images from the test split (ctest10k) as part of our test
+ dataset.
+\end_layout
+
+\begin_layout Itemize
+COCO-Stuff
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+ref
+\end_layout
+
+\end_inset
+
+: COCO-Stuff features images which contains a lot of objects since this
+ dataset focus on object detection and semantic segmentation.
+ Due to restriction of computational resource, we train our model on the
+ 2017 validation set (5k images) and test on the select 4k images from the
+ 2014 test set.
+\end_layout
+
+\begin_layout Itemize
+Places205
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+ref
+\end_layout
+
+\end_inset
+
+: We also use the select 4k images from from the Places205 dataset for evaluatio
+n.
+\end_layout
+
 \begin_layout Subsubsection
 Metric
+\end_layout
+
+\begin_layout Standard
+Traditionally speaking, we have PSNR (Peak signal-to-noise ratio) and SSIM
+ (structural similarity index measure) to measure how close and similar
+ the generated image is to the original one.
+ However, it is revealed in 
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+ref!
+\end_layout
+
+\end_inset
+
+ that those metrics may not agree with human perception since we rely more
+ on the semantic information rather than local characteristics.
+ Thus, we include the recently proposed perceptual metric LPIPS by 
+\begin_inset Marginal
+status open
+
+\begin_layout Plain Layout
+ref!
+\end_layout
+
+\end_inset
+
+ (version 0.1 with VGG backbone) which is capable of capturing the mid- and
+ high-level features.
+\end_layout
+
+\begin_layout Subsubsection
+Loss Function 
+\begin_inset Formula $l$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is crucial to pick the correct loss function to measure how close the
+ colorization is, but there doesn't seem to be a canonical choice.
+ Nevertheless, 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+ loss is adopted in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Vitoria2020"
+literal "false"
+
+\end_inset
+
+ and the smoothed 
+\begin_inset Formula $L^{1}$
+\end_inset
+
+ loss (i.e.
+ the Huber loss)
+\begin_inset Formula 
+\[
+l_{\delta}^{1}\left(x,y\right)=\frac{1}{2}\left(x-y\right)^{2}\cdot\boldsymbol{1}_{\left\{ \abs{x-y}<\delta\right\} }+\delta\left(\abs{x-y}-\frac{1}{2}\delta\right)\cdot\boldsymbol{1}_{\left\{ \abs{x-y}\ge\delta\right\} }
+\]
+
+\end_inset
+
+is adopted in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Su2020"
+literal "false"
+
+\end_inset
+
+.
+ We test both choices in this paper.
+\end_layout
+
+\begin_layout Subsubsection
+Training procedure
+\end_layout
+
+\begin_layout Standard
+We resize all input images to 
+\begin_inset Formula $224\times224$
+\end_inset
+
+ as well as the cropped instance images.
+ The training procedure is done on one Google Colab instance and involves
+ seven epoches where the ADAM optimizer is used with default hyper-parameters.
+ 
 \end_layout
 
 \begin_layout Subsection
@@ -242,7 +874,7 @@ Comparison with Baseline
 
 \begin_layout Standard
 \begin_inset Float table
-wide true
+wide false
 sideways false
 status open
 
@@ -250,7 +882,7 @@ status open
 \begin_inset Tabular
 <lyxtabular version="3" rows="6" columns="13">
 <features booktabs="true" tabularvalignment="middle">
-<column alignment="left" valignment="top" width="0pt">
+<column alignment="left" valignment="top" width="12line%">
 <column alignment="center" valignment="top" width="0pt">
 <column alignment="center" valignment="top" width="0pt">
 <column alignment="center" valignment="top" width="0pt">
@@ -288,7 +920,7 @@ Method
 \begin_layout Plain Layout
 
 \size footnotesize
-Imagenet ctest
+Imagenet ctest*
 \end_layout
 
 \end_inset
@@ -414,7 +1046,7 @@ Places205 validation split*
 
 \shape italic
 \size footnotesize
-LPIPS
+LPIPS**
 \begin_inset Formula $\downarrow$
 \end_inset
 
@@ -471,7 +1103,7 @@ SSIM
 
 \shape italic
 \size footnotesize
-LPIPS
+LPIPS**
 \begin_inset Formula $\downarrow$
 \end_inset
 
@@ -528,7 +1160,7 @@ SSIM
 
 \shape italic
 \size footnotesize
-LPIPS
+LPIPS**
 \begin_inset Formula $\downarrow$
 \end_inset
 
@@ -575,6 +1207,8 @@ SSIM
 \begin_inset Text
 
 \begin_layout Plain Layout
+
+\size footnotesize
 ChromaGAN
 \end_layout
 
@@ -593,7 +1227,10 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\series bold
+\size footnotesize
+0.093
 \end_layout
 
 \end_inset
@@ -602,7 +1239,10 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\series bold
+\size footnotesize
+23.329
 \end_layout
 
 \end_inset
@@ -611,7 +1251,9 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.896
 \end_layout
 
 \end_inset
@@ -629,25 +1271,10 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
-\end_layout
 
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
+\series bold
+\size footnotesize
+0.086
 \end_layout
 
 \end_inset
@@ -657,6 +1284,8 @@ ChromaGAN
 
 \begin_layout Plain Layout
 
+\size footnotesize
+23.284
 \end_layout
 
 \end_inset
@@ -665,7 +1294,9 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.910
 \end_layout
 
 \end_inset
@@ -674,7 +1305,7 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
 \end_layout
 
 \end_inset
@@ -683,7 +1314,31 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.081
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+23.668
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+0.917
 \end_layout
 
 \end_inset
@@ -694,6 +1349,8 @@ ChromaGAN
 \begin_inset Text
 
 \begin_layout Plain Layout
+
+\size footnotesize
 Instcolorization
 \end_layout
 
@@ -712,7 +1369,9 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.107
 \end_layout
 
 \end_inset
@@ -721,7 +1380,9 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+22.447
 \end_layout
 
 \end_inset
@@ -730,7 +1391,9 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.854
 \end_layout
 
 \end_inset
@@ -748,25 +1411,9 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
-\end_layout
 
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
+\size footnotesize
+0.087
 \end_layout
 
 \end_inset
@@ -776,6 +1423,8 @@ Instcolorization
 
 \begin_layout Plain Layout
 
+\size footnotesize
+22.973
 \end_layout
 
 \end_inset
@@ -784,7 +1433,9 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.860
 \end_layout
 
 \end_inset
@@ -793,7 +1444,7 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
 \end_layout
 
 \end_inset
@@ -802,7 +1453,33 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\series bold
+\size footnotesize
+0.078
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+24.033
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+0.909
 \end_layout
 
 \end_inset
@@ -813,6 +1490,8 @@ Instcolorization
 \begin_inset Text
 
 \begin_layout Plain Layout
+
+\size footnotesize
 ChrIns 
 \begin_inset Formula $L^{2}$
 \end_inset
@@ -835,25 +1514,9 @@ ChrIns
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
-\end_layout
 
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
+\size footnotesize
+0.108
 \end_layout
 
 \end_inset
@@ -863,6 +1526,8 @@ ChrIns
 
 \begin_layout Plain Layout
 
+\size footnotesize
+22.727
 \end_layout
 
 \end_inset
@@ -871,25 +1536,9 @@ ChrIns
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
-\end_layout
 
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
+\size footnotesize
+0.902
 \end_layout
 
 \end_inset
@@ -907,7 +1556,9 @@ ChrIns
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.094
 \end_layout
 
 \end_inset
@@ -916,7 +1567,10 @@ ChrIns
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\series bold
+\size footnotesize
+23.324
 \end_layout
 
 \end_inset
@@ -925,7 +1579,53 @@ ChrIns
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\series bold
+\size footnotesize
+0.917
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+0.087
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+23.940
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+0.929
 \end_layout
 
 \end_inset
@@ -936,6 +1636,8 @@ ChrIns
 \begin_inset Text
 
 \begin_layout Plain Layout
+
+\size footnotesize
 ChrIns Huber
 \end_layout
 
@@ -954,25 +1656,9 @@ ChrIns Huber
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
-\end_layout
 
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" bottomline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" bottomline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
+\size footnotesize
+0.094
 \end_layout
 
 \end_inset
@@ -982,6 +1668,8 @@ ChrIns Huber
 
 \begin_layout Plain Layout
 
+\size footnotesize
+23.282
 \end_layout
 
 \end_inset
@@ -990,25 +1678,10 @@ ChrIns Huber
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
-\end_layout
 
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" bottomline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" bottomline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-/
+\series bold
+\size footnotesize
+0.915
 \end_layout
 
 \end_inset
@@ -1026,7 +1699,9 @@ ChrIns Huber
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.106
 \end_layout
 
 \end_inset
@@ -1035,7 +1710,9 @@ ChrIns Huber
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+22.677
 \end_layout
 
 \end_inset
@@ -1044,7 +1721,51 @@ ChrIns Huber
 \begin_inset Text
 
 \begin_layout Plain Layout
-/
+
+\size footnotesize
+0.900
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+0.090
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+23.440
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+0.926
 \end_layout
 
 \end_inset
@@ -1061,8 +1782,12 @@ ChrIns Huber
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-`ChrIns' stands `ChromaInstance' model.
- Notice: * select 4k images for other each dataset
+`ChrIns' stands the proposed ChromaInstance model.
+ Notice: * select 4k images for other each dataset; ** scaling by 
+\begin_inset Formula $10^{-3}$
+\end_inset
+
+.
 \end_layout
 
 \end_inset
@@ -1071,12 +1796,40 @@ ChrIns Huber
 \end_layout
 
 \begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "tab: metric"
+
+\end_inset
+
 
 \end_layout
 
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+We list the evaulation of all possible combinations mentioned above and
+ list the results in Tab.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab: metric"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+ It seems there is no clear dominance of one method over the rest, but ChromaIns
+tance with 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+ loss performs well in general.
 \end_layout
 
 \begin_layout Subsection

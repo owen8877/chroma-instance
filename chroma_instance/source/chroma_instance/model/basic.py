@@ -290,6 +290,10 @@ def wasserstein_loss_dummy(y_true, y_pred):
     return tf.reduce_mean(y_pred)
 
 
+def constant_loss_dummy(y_true, y_pred):
+    return tf.reduce_mean(y_pred) * 0
+
+
 class RandomWeightedAverage(_Merge):
     def _merge_function(self, inputs):
         weights = K.random_uniform((tf.shape(inputs[0])[0], 1, 1, 1))
