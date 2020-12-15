@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/PlotNeuralNet" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/chroma_instance/source/lpips_tensorflow" vcs="Git" />
   </component>
 </project>

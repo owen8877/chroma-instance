@@ -1,6 +1,6 @@
-ChromaGAN
-InstColorization
-Mask_RCNN
+/ChromaGAN
+/InstColorization
+/Mask_RCNN
 __pycache__
 *.h5
 *.zip
@@ -85,3 +85,4 @@ fabric.properties
 *.npy
 *.npz
 /chroma_instance/source/lpips_tensorflow/
+/PlotNeuralNet

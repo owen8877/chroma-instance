@@ -10,6 +10,7 @@
 \usepackage{abstract}
 \usepackage{footnote}
 \makesavenoteenv{tabular}
+\usepackage{stackengine}
 \end_preamble
 \use_default_options true
 \begin_modules
@@ -111,9 +112,36 @@ Ziheng Chen
 \end_layout
 
 \begin_layout Abstract
-chromagan+instcolorization.
- Utilize vgg as feature extraction, gan structure.
- compare effect of differentloss functions
+In this report, we propose a method to colorize gray-scale images which
+ combines the object detection technique and the GAN structure for realistic
+ color generation.
+ Our network architecture leverages an off-the-shelf object detector to
+ obtain the location of each object as well as its mask map and uses an
+ instance colorization network to extract object-level features.
+ On the full-image level, we reuse the same network structure to generate
+ the features which are merged with the object features at certain checkpoints.
+ Besides, the model is framed in an adversarial model that inspects the
+ generated image by an discriminator and adopts a WGAN design for better
+ training performance.
+ Experimental results show that our method
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Code can be found at 
+\begin_inset CommandInset href
+LatexCommand href
+target "https://github.com/owen8877/chroma-instance"
+literal "true"
+
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+ is capable and competitive among existing methods.
 \end_layout
 
 \begin_layout Section
@@ -121,18 +149,79 @@ Introduction
 \end_layout
 
 \begin_layout Standard
+Colorization is defined as a process where certain plausible color information
+ is inferred onto the given gray-scale inputs.
+ Even though we now live in a colorful world, there are still some monotone
+ color images where a large portion of them are legacy photos.
+ In that case, the films can only record the luminance information of the
+ intake mixed light instead of the RGB lights separately.
+ Thus, in this report, we assume that the pixel value in a given gray-scale
+ image corresponds to the luminance at the given pixel.
+\end_layout
+
+\begin_layout Standard
+Colorization is no doubt a highly ill-posed problem since at least two-thirds
+ of the information is lost.
+ However, this inversion process is not impossible: there are a few methods
+ relying on human intervention such as user-provided scibbles or a reference
+ image.
+ With the rise of deep learning technique, it is possible to exploit the
+ power of convolutional networks to learn the distribution of colored images.
+ A few early attempts, including 
 \begin_inset CommandInset citation
-LatexCommand cite
-key "Vitoria2020,Su2020"
+LatexCommand citet
+key "Cheng2015,Iizuka2016,Larsson2016"
 literal "false"
 
 \end_inset
 
+, uses CNNs to generate the color channels or predict the color distribution.
+ Later on, works like 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Guadarrama2017,Zhao2018"
+literal "false"
 
+\end_inset
+
+ proposes pixel-level color prediction for realistic generation.
+ Some other works 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Ci2018,Bahng2018,Yoo2019,Lee2020"
+literal "false"
+
+\end_inset
+
+ either uses user inputs or words as aids to enhance the prediction.
+ It is also possible to extend the technique to restore and repair old videos;
+ see 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Iizuka2019"
+literal "false"
+
+\end_inset
+
+.
 \end_layout
 
-\begin_layout Section
-Review on Related Work
+\begin_layout Standard
+In this work, we propose the ChromaInstance network and out main contributions
+ are
+\end_layout
+
+\begin_layout Itemize
+Combine two existing techniques in search of a better model which is both
+ instance-aware as well as capable of generating realistic images.
+\end_layout
+
+\begin_layout Itemize
+Compare two different ways of measuring the coloring error.
+\end_layout
+
+\begin_layout Itemize
+Improvements on existing codebase.
 \end_layout
 
 \begin_layout Section
@@ -140,7 +229,7 @@ Proposed Method
 \end_layout
 
 \begin_layout Standard
-Given a grayscale input image 
+Given a gray-scale input image 
 \begin_inset Formula $L\in\bR^{H\times W}$
 \end_inset
 
@@ -165,7 +254,7 @@ Given a grayscale input image
 \begin_inset Formula $\cG$
 \end_inset
 
- is learnt by means of an adversarial learning strategy where the generator
+ is learned by means of an adversarial learning strategy where the generator
  
 \begin_inset Formula $\cG$
 \end_inset
@@ -177,13 +266,55 @@ Given a grayscale input image
  cannot tell the difference, even though the latter is best at distinguishing
  the truth and generated distributions.
  The general structure is shown in Fig.
- ?.
  
-\begin_inset Marginal
-status collapsed
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:general-structure"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
 
 \begin_layout Plain Layout
-fig
+\begin_inset Graphics
+	filename ../figs/fig1.pdf
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Overview of our proposed model, ChromaInstance, able to colorize gray-scale
+ image with aware of instances.The left side, i.e.
+ yellow and blue boxes, are feature generators, of which the output is fed
+ to the discriminator.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:general-structure"
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
@@ -210,7 +341,7 @@ literal "false"
 \begin_inset Formula $\left\{ M_{i}\right\} $
 \end_inset
 
- (boolean matrices) from the grascale image 
+ (boolean matrices) from the gray-scale image 
 \begin_inset Formula $L$
 \end_inset
 
@@ -255,7 +386,7 @@ yer fashion and finally outputs the prediction
 \end_layout
 
 \begin_layout Standard
-It is also useful to utilize the semantic information of the input grayscale
+It is also useful to utilize the semantic information of the input gray-scale
  image, adopted in 
 \begin_inset CommandInset citation
 LatexCommand citet
@@ -272,7 +403,7 @@ literal "false"
 
 \end_inset
 
-, which can potentially help the colorization precedure since the classification
+, which can potentially help the colorization procedure since the classification
  of a given object may correlate with the color distribution.
 \end_layout
 
@@ -468,17 +599,67 @@ literal "false"
 
 .
  For more information, we refer to Fig.
- ?
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-fig!
-\end_layout
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:discriminator"
 
 \end_inset
 
  and our implementation.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename ../figs/discriminator.pdf
+	width 60line%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+The discriminator uses the same design as in PatchGAN 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Isola2017"
+literal "false"
+
+\end_inset
+
+ which penalize the blurry part in high frequencies which yields better
+ image quality.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:discriminator"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -515,18 +696,6 @@ literal "false"
 
 , i.e.
  the size of the full image.
- See Fig.
- ? for illustration.
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-fig!
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Subsubsection
@@ -544,13 +713,10 @@ literal "false"
 
  which is an extension to the existing VGG16 design.
  As shown in Fig.
- ?
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-fig!
-\end_layout
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:colorization-backbone"
 
 \end_inset
 
@@ -572,6 +738,58 @@ checkpoint
  details in the following subsection.
  The merged features are then passed to the next layer in the background
  colorization network.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/generator.pdf
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Our proposed network for color generation.
+ The yellow, red and purple blocks are vanilla VGG16 blocks which extracts
+ classification of the given input.
+ The middle-passing-back red blocks also detects the global features to
+ help correct the global color distribution.
+ The grey blocks capture the mid-level features, while the blue blocks decodes
+ the feature information and restore the color pattern.
+ The green balls indicate the location for fusion modules.
+ For instance network, we take the features from these checkpoints and merge
+ them back to the full-image network.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:colorization-backbone"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsubsection
@@ -609,13 +827,10 @@ As mentioned above, the fusion module aims to provide better colorization
 
 \begin_layout Standard
 As illustrated in Fig.
- ?
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-fig!
-\end_layout
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:weight-generator"
 
 \end_inset
 
@@ -699,13 +914,126 @@ where
  is the resized instance feature.
 \end_layout
 
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{figure}[h]
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+def
+\backslash
+big{
+\backslash
+includegraphics[width=
+\backslash
+linewidth]{../figs/fig2.pdf}}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+def
+\backslash
+little{
+\backslash
+includegraphics[width=0.23
+\backslash
+linewidth]{../figs/fusion.pdf}}
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+stackinset{l}{44pt}{t}{49pt}{
+\backslash
+little}{%
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+stackinset{l}{44pt}{t}{157pt}{
+\backslash
+little}{%
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+big%
+\end_layout
+
+\begin_layout Plain Layout
+
+}}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+caption{The fusion module.
+ The yellow and blue box contains the weight generator for each instance
+ and the full image, respectively.
+ Both networks share the same structure but different weights.
+ The instance weight maps $
+\backslash
+cW^j_i$ are resized and padded with $-
+\backslash
+infty$ so that the padding will not count during the softmax procedure.
+ After that, the normalized weight maps $W^j_
+\backslash
+cdot$ multiplies the features in a pixel-wise manner and the sum gives the
+ fused feature.}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+label{fig:weight-generator}
+\end_layout
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{figure}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Experiment
 \end_layout
 
 \begin_layout Standard
 In this section, we describe the setting of the numerical experiment including
- the choices of dataset, metric and loss function, compare our model with
+ the choice of datasets, metric and loss function, compare our model with
  several baselines, and give some visual comparison among related models.
 \end_layout
 
@@ -723,12 +1051,10 @@ We train and test our model on the following datasets:
 
 \begin_layout Itemize
 Imagenet ctest 
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-ref
-\end_layout
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Russakovsky2015"
+literal "false"
 
 \end_inset
 
@@ -739,13 +1065,11 @@ ref
 \end_layout
 
 \begin_layout Itemize
-COCO-Stuff
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-ref
-\end_layout
+COCO-Stuff 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Caesar2018"
+literal "false"
 
 \end_inset
 
@@ -757,13 +1081,11 @@ ref
 \end_layout
 
 \begin_layout Itemize
-Places205
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-ref
-\end_layout
+Places205 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Zhou2014"
+literal "false"
 
 \end_inset
 
@@ -780,24 +1102,20 @@ Traditionally speaking, we have PSNR (Peak signal-to-noise ratio) and SSIM
  (structural similarity index measure) to measure how close and similar
  the generated image is to the original one.
  However, it is revealed in 
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-ref!
-\end_layout
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Zhang2018"
+literal "false"
 
 \end_inset
 
  that those metrics may not agree with human perception since we rely more
  on the semantic information rather than local characteristics.
  Thus, we include the recently proposed perceptual metric LPIPS by 
-\begin_inset Marginal
-status open
-
-\begin_layout Plain Layout
-ref!
-\end_layout
+\begin_inset CommandInset citation
+LatexCommand citet
+key "Zhang2018"
+literal "false"
 
 \end_inset
 
@@ -876,9 +1194,10 @@ Comparison with Baseline
 \begin_inset Float table
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
+\align center
 \begin_inset Tabular
 <lyxtabular version="3" rows="6" columns="13">
 <features booktabs="true" tabularvalignment="middle">
@@ -1782,7 +2101,13 @@ ChrIns Huber
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-`ChrIns' stands the proposed ChromaInstance model.
+Quantitative comparison among proposed and baseline methods on a variety
+ of datasets.
+
+\shape italic
+ ChrIns
+\shape default
+ stands the proposed ChromaInstance model.
  Notice: * select 4k images for other each dataset; ** scaling by 
 \begin_inset Formula $10^{-3}$
 \end_inset
@@ -1811,7 +2136,7 @@ name "tab: metric"
 \end_layout
 
 \begin_layout Standard
-We list the evaulation of all possible combinations mentioned above and
+We list the evaluation of all possible combinations mentioned above and
  list the results in Tab.
  
 \begin_inset CommandInset ref
@@ -1836,8 +2161,707 @@ tance with
 Visualization
 \end_layout
 
+\begin_layout Standard
+We list a few evaluations of our models as well as the two baselines, shown
+ in Fig.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:comparison"
+
+\end_inset
+
+.
+ Compared with the ground truth image, ChromaGAN output is generally faint,
+ Instcolorization may suffer from inconsistent colorization, while our models
+ are more consistent within each image.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement h
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="8" columns="5">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="17line%">
+<column alignment="center" valignment="top" width="17line%">
+<column alignment="center" valignment="top" width="17line%">
+<column alignment="center" valignment="top" width="17line%">
+<column alignment="center" valignment="top" width="17line%">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/gt_0.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/chroma_gan_0.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/instcolorization_0.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_0.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_huber_instance_0.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/gt_1.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/chroma_gan_1.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/instcolorization_1.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_1.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_huber_instance_1.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/gt_2.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/chroma_gan_2.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/instcolorization_2.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_2.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_huber_instance_2.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/gt_4.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/chroma_gan_4.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/instcolorization_4.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_4.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_huber_instance_4.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/gt_6.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/chroma_gan_6.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/instcolorization_6.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_6.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_huber_instance_6.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/gt_7.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/chroma_gan_7.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/instcolorization_7.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_7.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_huber_instance_7.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/gt_8.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/chroma_gan_8.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/instcolorization_8.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_8.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/output/fusion_2obj_huber_instance_8.jpg
+	width 100line%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Ground Truth
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ChromaGAN
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+InstColorization
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ChromaInstance 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ChromaInstance Huber
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Comparison between our methods and baselines on three testing datasets.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:comparison"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Conclusion and Discussion
+\end_layout
+
+\begin_layout Standard
+We present a combination of two existing techniques in pursuit of a better
+ colorization model.
+ By leveraging an off-the-shelf object detection model, our architecture
+ fuses the extracted feature to predict color information while the GAN
+ structure ensures realistic color generation.
+ Through various experiments, we show that our method is competitive among
+ several existing ones.
+\end_layout
+
+\begin_layout Standard
+Nevertheless, there are indeed some potential improvements:
+\end_layout
+
+\begin_layout Enumerate
+To measure the coloring error, we introduce the 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+ error and the smoothed-
+\begin_inset Formula $L^{1}$
+\end_inset
+
+ error (a.k.a.
+ Huber loss function).
+ However, the 
+\begin_inset Formula $\delta$
+\end_inset
+
+ parameter in the Huber function remains undetermined and it may affect
+ the quality of the trained model.
+\end_layout
+
+\begin_layout Enumerate
+Our generator structure inherits the design of ChromaGAN which is basically
+ an extension of the VGG structure.
+ However, VGG is designed for classification, thus making it less effective
+ in image modification.
+ In comparison, Instcolorization adopts a U-net structure to separate different
+ levels of frequencies and is suitable for performing such task.
 \end_layout
 
 \begin_layout Standard
@@ -1845,7 +2869,7 @@ Conclusion and Discussion
 LatexCommand bibtex
 btprint "btPrintCited"
 bibfiles "../papers/ref"
-options "abbrvnat"
+options "plainnat"
 
 \end_inset
 
