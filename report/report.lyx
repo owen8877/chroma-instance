@@ -1194,7 +1194,7 @@ Comparison with Baseline
 \begin_inset Float table
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -2107,8 +2107,8 @@ Quantitative comparison among proposed and baseline methods on a variety
 \shape italic
  ChrIns
 \shape default
- stands the proposed ChromaInstance model.
- Notice: * select 4k images for other each dataset; ** scaling by 
+ stands for the proposed ChromaInstance model.
+ Notice: * select 4k images for other each dataset; ** scaled by 
 \begin_inset Formula $10^{-3}$
 \end_inset
 
